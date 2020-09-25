@@ -24,21 +24,31 @@ from set_tag_groups import set_tag_group
 # Import getter/setter module for AWS Service Catalog
 import service_catalog
 from service_catalog import service_catalog
+# Import getter/setter module for AWS SSM Parameter Store
+import ssm_parameter_store
+from ssm_parameter_store import ssm_parameter_store
+
 # Import flask framework module & classes to build API's
-import flask
-from flask import Flask, request, render_template, jsonify
+import flask, flask_login, flask_wtf
+from flask import Flask, jsonify, make_response, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
+# Use only flask_awscognito version 1.2.6 or higher from https://github.com/billdry/Flask-AWSCognito/
+from flask_awscognito import AWSCognitoAuthentication
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
 # Import JSON parser
 import json
 # Import logging module
 import logging
 # Import Regex
 import re
+#import OS module
+import os
+#import epoch time method
+from time import time
 
 # Read in Tag Tamer solution parameters
 tag_tamer_parameters_file = open('tag_tamer_parameters.json', "rt")
 tag_tamer_parameters = json.load(tag_tamer_parameters_file)
-
 
 # logLevel options are DEBUG, INFO, WARNING, ERROR or CRITICAL
 # Set logLevel in tag_tamer_parameters.json parameters file
@@ -46,7 +56,6 @@ if  re.search("DEBUG|INFO|WARNING|ERROR|CRITICAL", tag_tamer_parameters['paramet
     logLevel = tag_tamer_parameters['parameters']['logging_level'].upper()
 else:
     logLevel = 'INFO'
-
 logging.basicConfig(filename='tag_tamer.log',format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',datefmt='%m/%d/%Y %I:%M:%S %p')
 # Set the base/root logging level for tag_tamer.py & all imported modules
 logging.getLogger().setLevel(logLevel)
@@ -54,17 +63,40 @@ log = logging.getLogger('tag_tamer_main')
 # Raise logging level for WSGI tool kit "werkzeug" that's German for "tool"
 logging.getLogger('werkzeug').setLevel('ERROR')
 
-# Instantiate flask API application
-app = flask.Flask(__name__)
-app.secret_key = b'\xf9\xca\xf7{z\xb18\\\xa2g\xa2\xfb \xc4\xd4\xf8'
-app.config["DEBUG"] = True
-csrf = CSRFProtect(app)
-csrf.init_app(app)
-
 # Get user-specified AWS regions
 selected_regions = tag_tamer_parameters['parameters']['selected_regions']
 region = selected_regions[0]
 log.debug('The selected AWS region is: \"%s\"', region)
+
+# Get AWS Service parameters from AWS SSM Parameter Store
+ssm_ps = ssm_parameter_store(region)
+# Fully qualified list of SSM Parameter names
+ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameters['parameters']['ssm_parameter_path'], tag_tamer_parameters['parameters']['ssm_parameter_names']) 
+# SSM Parameters names & values
+ssm_parameters = ssm_ps.ssm_get_parameter_details(ssm_parameter_full_names)
+
+#print(ssm_parameters)
+
+# Instantiate flask API applications
+app = Flask(__name__)
+app.secret_key = os.urandom(12)
+app.config["DEBUG"] = True
+app.config['AWS_DEFAULT_REGION'] = ssm_parameters['/tag-tamer/cognito-default-region-value']
+app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['/tag-tamer/cognito-domain-value']
+app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['/tag-tamer/cognito-user-pool-id-value']
+app.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = ssm_parameters['/tag-tamer/cognito-app-client-id']
+app.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = ssm_parameters['/tag-tamer/cognito-app-client-secret-value']
+app.config['AWS_COGNITO_REDIRECT_URL'] = ssm_parameters['/tag-tamer/cognito-redirect-url-value']
+app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['/tag-tamer/jwt-token-location']
+app.config['JWT_COOKIE_SECURE'] = ssm_parameters['/tag-tamer/jwt-cookie-secure']
+#app.config['JWT_COOKIE_DOMAIN'] = 'localhost:5000'
+app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['/tag-tamer/jwt-access-cookie-name']
+app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['/tag-tamer/jwt-cookie-csrf-protect']
+
+aws_auth = AWSCognitoAuthentication(app)
+csrf = CSRFProtect(app)
+csrf.init_app(app)
+jwt = JWTManager(app)
 
 ##Output EC2 inventory as JSON for tobywan@
 @app.route('/ec2-tags', methods=['GET'])
@@ -73,24 +105,53 @@ def ec2_tags():
     sorted_tagged_inventory = inventory.get_resources_tags()
     return jsonify(sorted_tagged_inventory)
 
-# Get response delivers Tag Tamer home page HTML
-@app.route('/', methods=['GET'])
-def index():
-    return render_template('index.html')  
+# Allow users to sign into Tag Tamer via an AWS Cognito User Pool
+@app.route('/log-in')
+@app.route('/sign-in')
+def sign_in():
+    return redirect(aws_auth.get_sign_in_url())
 
-# Get response delivers Tag Tamer actions page HTML showing user choices as clickable buttons
+# Redirect the user to the Tag Tamer home page after successful AWS Cognito login
+@app.route('/aws_cognito_redirect', methods=['GET'])
+def aws_cognito_redirect():
+    access_token = None
+    access_token = aws_auth.get_access_token(request.args)
+    if access_token:    
+        response = make_response(render_template('redirect.html'))
+        response.set_cookie('access_token', value=access_token)
+        return response, 200
+    else:
+        return redirect(url_for('sign_in'))
+
+# Get response delivers Tag Tamer home page
+@app.route('/index.html', methods=['GET'])
+@app.route('/index.htm', methods=['GET'])
+@app.route('/index', methods=['GET'])
+@app.route('/', methods=['GET'])
+@aws_auth.authentication_required
+def index():
+    claims = aws_auth.claims
+    if time() < claims.get('exp'):
+        return render_template('index.html', user_name=claims.get('username'))
+    else:
+        return redirect('/sign-in')
+
+# Get response delivers Tag Tamer actions page showing user choices as clickable buttons
 @app.route('/actions', methods=['GET'])
+@aws_auth.authentication_required
 def actions():
     return render_template('actions.html')    
 
 # Get response delivers HTML UI to select AWS resource types that Tag Tamer will find
 # Post action initiates tag finding for user selected AWS resource types
 @app.route('/find-tags', methods=['POST'])
+@aws_auth.authentication_required
 def find_tags():
     return render_template('find-tags.html')    
 
 # Pass Get response to found-tags HTML UI
 @app.route('/found-tags', methods=['POST'])
+@aws_auth.authentication_required
 def found_tags():
     if request.form.get('resource_type') == "ebs":
         resource_type = 'ec2'
@@ -107,11 +168,13 @@ def found_tags():
 
 # Delivers HTML UI to select AWS resource types to manage Tag Groups for
 @app.route('/type-to-tag-group', methods=['POST'])
+@aws_auth.authentication_required
 def type_to_tag_group():
     return render_template('type-to-tag-group.html') 
 
 # Post response to get tag groups attributes UI
 @app.route('/get-tag-group-names', methods=['POST'])
+@aws_auth.authentication_required
 def get_tag_group_names():
     all_tag_groups = get_tag_groups(region)
     tag_group_names = all_tag_groups.get_tag_group_names()
@@ -127,6 +190,7 @@ def get_tag_group_names():
 
 # Post method to display edit UI for chosen tag group
 @app.route('/edit-tag-group', methods=['POST'])
+@aws_auth.authentication_required
 def edit_tag_group():
     if request.form.get('resource_type') == "ebs":
         resource_type = 'ec2'
@@ -154,6 +218,7 @@ def edit_tag_group():
 
 # Post method to add or update a tag group
 @app.route('/add-update-tag-group', methods=['POST'])
+@aws_auth.authentication_required
 def add_update_tag_group():
     new_tag_group_name = request.form.get('new_tag_group_name')
     if new_tag_group_name:
@@ -200,11 +265,13 @@ def add_update_tag_group():
 
 # Delivers HTML UI to select AWS resource type to tag using Tag Groups
 @app.route('/select-resource-type', methods=['POST'])
+@aws_auth.authentication_required
 def select_resource_type():
     return render_template('select-resource-type.html') 
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
 @app.route('/tag_resources', methods=['POST'])
+@aws_auth.authentication_required
 def tag_resources():
     inbound_resource_type = request.form.get('resource_type')
     if request.form.get('resource_type') == "ebs":
@@ -226,6 +293,7 @@ def tag_resources():
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
 @app.route('/apply-tags-to-resources', methods=['POST'])
+@aws_auth.authentication_required
 def apply_tags_to_resources():
     resources_to_tag = []
     resources_to_tag = request.form.getlist('resources_to_tag')
@@ -264,6 +332,7 @@ def apply_tags_to_resources():
 
 # Retrieves AWS Service Catalog products & Tag Groups
 @app.route('/get-service-catalog', methods=['GET'])
+@aws_auth.authentication_required
 def get_service_catalog():
 
     #Get the Tag Group names & associated tag keys
@@ -282,6 +351,7 @@ def get_service_catalog():
 
 # Updates AWS Service Catalog product templates with TagOptions using Tag Groups
 @app.route('/set-service-catalog', methods=['POST'])
+@aws_auth.authentication_required
 def set_service_catalog():
     selected_tag_groups = list()
     selected_tag_groups = request.form.getlist('tag_groups_to_assign')
@@ -309,6 +379,7 @@ def set_service_catalog():
 
 # Retrieves AWS Config Rules & Tag Groups
 @app.route('/find-config-rules', methods=['GET'])
+@aws_auth.authentication_required
 def find_config_rules():
 
     #Get the Tag Group names & associated tag keys
@@ -325,6 +396,7 @@ def find_config_rules():
 
 # Updates AWS Config's required-tags rule using Tag Groups
 @app.route('/update-config-rules', methods=['POST'])
+@aws_auth.authentication_required
 def set_config_rules():
     selected_tag_groups = list()
     selected_tag_groups = request.form.getlist('tag_groups_to_assign')
@@ -355,6 +427,7 @@ def set_config_rules():
 
 # Retrieves AWS IAM Roles & Tag Groups
 @app.route('/select-roles-tags', methods=['GET'])
+@aws_auth.authentication_required
 def select_roles_tags():
     tag_group_inventory = get_tag_groups(region)
     tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values()
@@ -368,6 +441,7 @@ def select_roles_tags():
 
 # Assigns selected tags to roles for tagging newly created AWS resources
 @app.route('/set-roles-tags', methods=['POST'])
+@aws_auth.authentication_required
 def set_roles_tags():
     role_name = request.form.get('roles_to_tag')
     form_contents = request.form.to_dict()
@@ -387,4 +461,12 @@ def set_roles_tags():
 
     return render_template('actions.html')
 
-app.run()          
+@app.route('/logout', methods=['GET'])
+@aws_auth.authentication_required
+def logout():
+    response = make_response(render_template('logout.html'))
+    unset_jwt_cookies(response)
+    return response, 200
+
+if __name__ == '__main__':
+    app.run()          
