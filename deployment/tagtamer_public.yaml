@@ -359,7 +359,7 @@ Resources:
             #!/bin/bash -xe
             cd /var/tmp
             yum -y install git
-            git clone https://github.com/sbpath/tagtamer.git
+            git clone https://github.com/billdry/tag-tamer-deployment-test.git
             cd tagtamer/source
             bash tagtamer-install.sh
       Tags:
