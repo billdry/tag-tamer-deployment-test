@@ -1,46 +1,71 @@
 # Tag Tamer
 A solution to consistently tag AWS resources
 
-## Tag Tamer Solution Installation Procedure
-
-### Before you begin (Prerequisites):
-
-__a)__ Identity the target AWS account where you would like to deploy Tag Tamer
-
-__b)__ Identify the EC2 Key Pair you will use to access the Tag Tamer Web App EC2 instance ("Web App")
-
-__c)__ Identify the IAM role that AWS CloudFormation will use to deploy DynamoDB, EC2 & IAM resources
-
-__d)__ Identify the X.509 certificate to use for ALB if loadbalancer needs to be deployed in public subnet. If you plan to install a self-signed certificate, instructions are provided below.
-
-
-### Installation option #1: Web App deployed in a private subnet
-
-__Step 1__ - Download the AWS CloudFormation template at the following link. It specifies the Tag Tamer solution infrastructure.
-
-https://github.com/billdry/tag-tamer/blob/master/installation%20procedures/tagtamer_private.yaml
-
-__Step 2__ - Deploy the CloudFormation Template downloaded in step 1 into your AWS account. You will need an EC2 Key Pair, an AMI ID such as amzn2-ami-hvm-x86_64-gp2, a VPC ID, Private Subnet, a source IP range for incoming management connections and an AWS SES validated email address.
-
-__Step 3__ - Verify the correct operation of the Tag Tamer Web App by browsing to https://<EC2Instance.PrivateDnsName>/sign-in The CloudFormation outputs list the exact sign-in URL you must use.
-
-### Installation option #2: Web App deployed in a private subnet behind ALB in a public subnet
-
-__Step 1__ - Download the AWS CloudFormation template at the following link. It specifies the Tag Tamer solution infrastructure.
-
-https://github.com/billdry/tag-tamer/blob/master/installation%20procedures/tagtamer_public.yaml
-
-__Step 2__ - Deploy the CloudFormation Template downloaded in step 1 into your AWS account. You will need an EC2 Key Pair, an AMI ID such as amzn2-ami-hvm-x86_64-gp2, an X.509 certificate, a source IP range for incoming management connections and an AWS SES validated email address.
-
-__Step 3__ - Verify the correct operation of the Tag Tamer Web App by browsing to https://<EC2Instance.PublicDnsName>/sign-in The CloudFormation outputs list the exact sign-in URL you must use.
-
-#### How to create a self-signed certificate and import it to your AWS account
-
+## Running unit tests for customization
+* Clone the repository, then make the desired code changes
+* Next, run unit tests to make sure added customization passes the tests
 ```
-openssl genrsa 2048 > my-aws-private.key
-openssl req -new -x509 -nodes -sha1 -days 3650 -extensions v3_ca -key my-aws-private.key > my-aws-public.crt
-openssl pkcs12 -inkey my-aws-private.key -in my-aws-public.crt -export -out my-aws-public.p12
-aws acm import-certificate --certificate fileb://my-aws-public.crt --private-key fileb://my-aws-private.key
+cd ./deployment
+chmod +x ./run-unit-tests.sh  \n
+./run-unit-tests.sh \n
 ```
 
-## END OF PROCEDURE
+## Building distributable for customization
+* Configure the bucket name of your target Amazon S3 distribution bucket
+```
+export DIST_OUTPUT_BUCKET=my-bucket-name # bucket where customized code will reside
+export SOLUTION_NAME=my-solution-name
+export VERSION=my-version # version number for the customized code
+```
+_Note:_ You would have to create an S3 bucket with the prefix 'my-bucket-name-<aws_region>'; aws_region is where you are testing the customized solution. Also, the assets in bucket should be publicly accessible.
+
+* Now build the distributable:
+```
+chmod +x ./build-s3-dist.sh \n
+./build-s3-dist.sh $DIST_OUTPUT_BUCKET $SOLUTION_NAME $VERSION \n
+```
+
+* Deploy the distributable to an Amazon S3 bucket in your account. _Note:_ you must have the AWS Command Line Interface installed.
+```
+aws s3 cp ./dist/ s3://my-bucket-name-<aws_region>/$SOLUTION_NAME/$VERSION/ --recursive --acl bucket-owner-full-control --profile aws-cred-profile-name \n
+```
+
+* Get the link of the solution template uploaded to your Amazon S3 bucket.
+* Deploy the solution to your account by launching a new AWS CloudFormation stack using the link of the solution template in Amazon S3.
+
+*** 
+
+## File Structure
+
+```
+|-deployment/
+  |-build-s3-dist.sh             [ shell script for packaging distribution assets ]
+  |-run-unit-tests.sh            [ shell script for executing unit tests ]
+  |-solution.yaml                [ solution CloudFormation deployment template ]
+|-source/
+  |-example-function-js          [ Example microservice function in javascript ]
+    |- lib/                      [ Example function libraries ]
+  |-example-function-py          [ Example microservice function in python ]
+
+```
+
+Each microservice follows the structure of:
+
+```
+|-service-name/
+  |-lib/
+    |-[service module libraries and unit tests]
+  |-index.js [injection point for microservice]
+  |-package.json
+```
+
+***
+
+
+Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+Licensed under the Apache License Version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
+
+    http://www.apache.org/licenses/
+
+or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License.
