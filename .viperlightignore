@@ -1,5 +1,5 @@
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
-./deployment/Tag Tamer Installation Instructions.md
-./deployment/tagtamer_public.yaml:45
-./source/Flask-AWSCognito/setup.py:21
+deployment/Tag Tamer Installation Instructions.md
+deployment/tagtamer_public.yaml:45
+source/Flask-AWSCognito/setup.py:21
