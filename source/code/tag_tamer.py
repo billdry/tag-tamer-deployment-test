@@ -8,6 +8,8 @@ from admin import date_time_now
 # Import Collections module to manipulate dictionaries
 import collections
 from collections import defaultdict, OrderedDict
+# Import getter functions for Amazon Cognito
+from cognito_idp import *
 # Import getter/setter module for AWS Config
 import config
 from config import config
@@ -29,6 +31,8 @@ from service_catalog import service_catalog
 # Import getter/setter module for AWS SSM Parameter Store
 import ssm_parameter_store
 from ssm_parameter_store import ssm_parameter_store
+# Import AWS STS functions
+from sts import *
 # Import Tag Tamer utility functions
 from utilities import *
 
@@ -97,7 +101,7 @@ app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['/tag-tamer/jwt-cookie-cs
 aws_auth = AWSCognitoAuthentication(app)
 jwt = JWTManager(app)
 
-# Allow users to sign into Tag Tamer via an AWS Cognito User Pool
+# Allow users to sign into Tag Tamer via an Amazon Cognito User Pool
 @app.route('/log-in')
 @app.route('/sign-in')
 def sign_in():
@@ -123,11 +127,28 @@ def aws_cognito_redirect():
 @aws_auth.authentication_required
 def index():
     claims = aws_auth.claims
-    if time() < claims.get('exp'):
+    # Get the user's assigned Cognito user pool group
+    cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
+        ssm_parameters['/tag-tamer/cognito-user-pool-id-value'],
+        ssm_parameters['/tag-tamer/cognito-default-region-value'])
+    # Grant access if session time not expired & user assigned to Cognito user pool group
+    if time() < claims.get('exp') and cognito_user_group_arn:
         log.info("User \"{}\" signed in on {}".format(claims.get('username'), date_time_now()))
         return render_template('index.html', user_name=claims.get('username'))
     else:
         return redirect('/sign-in')
+
+def get_user_session_credentials():
+    claims = aws_auth.claims
+    # Get the user's assigned Cognito user pool group
+    cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
+        ssm_parameters['/tag-tamer/cognito-user-pool-id-value'],
+        ssm_parameters['/tag-tamer/cognito-default-region-value'])
+    user_session_credentials = get_session_credentials(cognito_user_group_arn,
+        claims.get('username'),
+        ssm_parameters['/tag-tamer/cognito-default-region-value'])
+    return user_session_credentials
+
 
 
 # Get response delivers Tag Tamer actions page showing user choices as clickable buttons
@@ -148,8 +169,9 @@ def find_tags():
 @aws_auth.authentication_required
 def found_tags():
     resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+    session_credentials = get_user_session_credentials()
     inventory = resources_tags(resource_type, unit, region)
-    sorted_tagged_inventory = inventory.get_resources_tags()
+    sorted_tagged_inventory = inventory.get_resources_tags(**session_credentials)
     return render_template('found-tags.html', inventory=sorted_tagged_inventory)
 
 # Delivers HTML UI to select AWS resource types to manage Tag Groups for
