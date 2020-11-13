@@ -2,7 +2,7 @@
 
 # Install rpms
 yum update -y
-yum install -y python3 python3-pip dos2unix yum-utils
+yum install -y python3 python3-pip yum-utils
 amazon-linux-extras install nginx1 -y
 
 # Install Python modules
@@ -10,15 +10,15 @@ mkdir -p /home/ec2-user/tag-tamer/prod
 chown -R ec2-user:ec2-user /home/ec2-user/tag-tamer
 #pip3 install boto3 botocore flask flask-WTF gunicorn Flask_jwt_Extended flask_login
 #pip3 install /var/tmp/tagtamer/source/Flask-AWSCognito
-su - ec2-user -c "python3 -m venv /home/ec2-user/tag-tamer/prod;source /home/ec2-user/tag-tamer/prod/bin/activate; pip3 install boto3 botocore flask flask-WTF gunicorn Flask_jwt_Extended flask_login /var/tmp/tagtamer/source/Flask-AWSCognito; deactivate"
+su - ec2-user -c "python3 -m venv /home/ec2-user/tag-tamer/prod;source /home/ec2-user/tag-tamer/prod/bin/activate; pip3 install boto3 botocore flask flask-WTF gunicorn Flask_jwt_Extended flask_login /var/tmp/tag-tamer-deployment-test/source/Flask-AWSCognito; deactivate"
 
 # Copy code and config
-cd /var/tmp/tagtamer/source
+cd /var/tmp/tag-tamer-deployment-test/source
 cp config/tag-tamer.conf /etc/nginx/conf.d
 cp config/proxy_params /etc/nginx
 cp config/ssl-redirect.conf  /etc/nginx/default.d/
 cp config/tagtamer.service /etc/systemd/system
-cp -pr code/* to /home/ec2-user/tag-tamer/
+cp -pr code/* /home/ec2-user/tag-tamer/
 
 mkdir -p /home/ec2-user/tag-tamer/log
 mkdir -p /var/log/tag-tamer
