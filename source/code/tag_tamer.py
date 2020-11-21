@@ -87,16 +87,16 @@ ssm_parameters = ssm_ps.ssm_get_parameter_details(ssm_parameter_full_names)
 # Instantiate flask API applications
 app = Flask(__name__)
 app.secret_key = os.urandom(12)
-app.config['AWS_DEFAULT_REGION'] = ssm_parameters['/tag-tamer/cognito-default-region-value']
-app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['/tag-tamer/cognito-domain-value']
-app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['/tag-tamer/cognito-user-pool-id-value']
-app.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = ssm_parameters['/tag-tamer/cognito-app-client-id']
-app.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = ssm_parameters['/tag-tamer/cognito-app-client-secret-value']
-app.config['AWS_COGNITO_REDIRECT_URL'] = ssm_parameters['/tag-tamer/cognito-redirect-url-value']
-app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['/tag-tamer/jwt-token-location']
-app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['/tag-tamer/jwt-access-cookie-name']
-app.config['JWT_COOKIE_SECURE'] = ssm_parameters['/tag-tamer/jwt-cookie-secure']
-app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['/tag-tamer/jwt-cookie-csrf-protect']
+app.config['AWS_DEFAULT_REGION'] = ssm_parameters['cognito-default-region-value']
+app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['cognito-domain-value']
+app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['cognito-user-pool-id-value']
+app.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = ssm_parameters['cognito-app-client-id']
+app.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = ssm_parameters['cognito-app-client-secret-value']
+app.config['AWS_COGNITO_REDIRECT_URL'] = ssm_parameters['cognito-redirect-url-value']
+app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['jwt-token-location']
+app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['jwt-access-cookie-name']
+app.config['JWT_COOKIE_SECURE'] = ssm_parameters['jwt-cookie-secure']
+app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['jwt-cookie-csrf-protect']
 
 aws_auth = AWSCognitoAuthentication(app)
 jwt = JWTManager(app)

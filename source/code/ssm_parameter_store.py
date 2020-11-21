@@ -37,7 +37,10 @@ class ssm_parameter_store:
             #print("the parameter response is: ", get_parameter_response)
             parameter_dictionary = dict()
             for parameter in get_parameter_response['Parameters']:
-                parameter_dictionary[parameter['Name']] = parameter['Value']
+                # Remove the path prepending the SSM Parameter name
+                name_components = parameter['Name'].split("/")
+                short_parameter_name = name_components[-1]
+                parameter_dictionary[short_parameter_name] = parameter['Value']
             
             #print(parameter_dictionary)
             
