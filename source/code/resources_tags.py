@@ -31,13 +31,20 @@ class resources_tags:
         self.region = region
 
     #Returns a sorted list of all resources for the resource type specified  
-    def get_resources(self, **filter_tags):
+    def get_resources(self, filter_tags, session_credentials):
         
         self.filter_tags = dict()
         self.filter_tags = filter_tags
         log.debug("The received filter tags are: {}".format(self.filter_tags))
+
+        self.session_credentials = {}
+        self.session_credentials = session_credentials
+        this_session = boto3.session.Session(
+            aws_access_key_id=self.session_credentials['AccessKeyId'],
+            aws_secret_access_key=self.session_credentials['SecretAccessKey'],
+            aws_session_token=self.session_credentials['SessionToken'])
         
-        client = boto3.client(self.resource_type, region_name=self.region)
+        client = this_session.client(self.resource_type, region_name=self.region)
 
         def _get_filtered_resources(client_command):
             
@@ -175,7 +182,7 @@ class resources_tags:
             else:
                 try:
                     named_resources = _get_named_resources('describe_instances')
-                    selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                    selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                     for resource in selected_resource_type.instances.all():
                         named_resource_inventory[resource.id] = 'no name found'
                     for item in named_resources['Reservations']:
@@ -203,7 +210,7 @@ class resources_tags:
             else:
                 try:
                     named_resources = _get_named_resources('describe_volumes')
-                    selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                    selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                     for resource in selected_resource_type.volumes.all():
                         named_resource_inventory[resource.id] = 'no name found'
                     for item in named_resources['Volumes']:
@@ -244,7 +251,7 @@ class resources_tags:
                                     if tag.get('Key') == self.filter_tags.get('tag_key2'):
                                         named_resource_inventory[resource.name] = resource.name
             else:
-                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 for resource in selected_resource_type.buckets.all():   
                     named_resource_inventory[resource.name] = resource.name
                 log.debug("The buckets list is: {}".format(named_resource_inventory)) 
@@ -260,18 +267,19 @@ class resources_tags:
             
     # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
     # No input arguments
-    def get_resources_tags(self, **session_credentials):
+    def get_resources_tags(self, session_credentials):
 
         # Instantiate dictionaries to hold resources & their tags
         tagged_resource_inventory = {}
         sorted_tagged_resource_inventory = {}
+
         self.session_credentials = {}
         self.session_credentials = session_credentials
-
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
             aws_secret_access_key=self.session_credentials['SecretAccessKey'],
             aws_session_token=self.session_credentials['SessionToken'])
+        
         # Interate through resources & inject resource ID's with user-defined tag key:value pairs per resource into a nested dictionary
         # indexed by resource ID
         if self.unit == 'instances':
@@ -332,13 +340,20 @@ class resources_tags:
 
     # Getter method retrieves every tag:key for object's resource type
     # No input arguments
-    def get_tag_keys(self):
+    def get_tag_keys(self, session_credentials):
 
         sorted_tag_keys_inventory = list()
 
+        self.session_credentials = {}
+        self.session_credentials = session_credentials
+        this_session = boto3.session.Session(
+            aws_access_key_id=self.session_credentials['AccessKeyId'],
+            aws_secret_access_key=self.session_credentials['SecretAccessKey'],
+            aws_session_token=self.session_credentials['SessionToken'])
+
         if self.unit == 'instances':
             try:
-                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.instances.all():
                     try:
                         for tag in item.tags:
@@ -352,7 +367,7 @@ class resources_tags:
                 sorted_tag_keys_inventory.append("No tag keys found")
         elif self.unit == 'volumes':
             try:
-                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.volumes.all():
                     try:
                         for tag in item.tags:
@@ -366,7 +381,7 @@ class resources_tags:
                 sorted_tag_keys_inventory.append("No Tags Found")
         elif self.unit == 'buckets':
             try:
-                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.buckets.all():
                     try:
                         for tag in selected_resource_type.BucketTagging(item.name).tag_set:
@@ -390,13 +405,20 @@ class resources_tags:
 
     # Getter method retrieves every tag:value for object's resource type
     # No input arguments
-    def get_tag_values(self):
+    def get_tag_values(self, session_credentials):
 
         sorted_tag_values_inventory = list()
 
+        self.session_credentials = {}
+        self.session_credentials = session_credentials
+        this_session = boto3.session.Session(
+            aws_access_key_id=self.session_credentials['AccessKeyId'],
+            aws_secret_access_key=self.session_credentials['SecretAccessKey'],
+            aws_session_token=self.session_credentials['SessionToken'])
+
         if self.unit == 'instances':
             try:
-                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.instances.all():
                     try:
                         for tag in item.tags:
@@ -410,7 +432,7 @@ class resources_tags:
                 sorted_tag_values_inventory.append("No Tags Found")
         elif self.unit == 'volumes':
             try:
-                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.volumes.all():
                     try:
                         for tag in item.tags:
@@ -424,7 +446,7 @@ class resources_tags:
                 sorted_tag_values_inventory.append("No Tags Found")
         elif self.unit == 'buckets':
             try:
-                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.buckets.all():
                     try:
                         for tag in selected_resource_type.BucketTagging(item.name).tag_set:
@@ -447,13 +469,20 @@ class resources_tags:
         return sorted_tag_values_inventory
 
     #Setter method to update tags on user-selected resources 
-    def set_resources_tags(self, resources_to_tag, chosen_tags):
+    def set_resources_tags(self, resources_to_tag, chosen_tags, session_credentials):
 
         resources_updated_tags = {}
 
+        self.session_credentials = {}
+        self.session_credentials = session_credentials
+        this_session = boto3.session.Session(
+            aws_access_key_id=self.session_credentials['AccessKeyId'],
+            aws_secret_access_key=self.session_credentials['SecretAccessKey'],
+            aws_session_token=self.session_credentials['SessionToken'])
+
         if self.unit == 'instances':
             try:
-                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 for resource_id in resources_to_tag:
                         resource_tag_list = []
                         instance = selected_resource_type.Instance(resource_id)
@@ -465,7 +494,7 @@ class resources_tags:
                 resources_updated_tags["No Resources Found"] = "No Tags Applied"
         elif self.unit == 'volumes':
             try:
-                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 for resource_id in resources_to_tag:
                         resource_tag_list = []
                         volume = selected_resource_type.Volume(resource_id)
@@ -481,7 +510,7 @@ class resources_tags:
                 resource_tag_list = list()
                 current_applied_tags = dict()
                 try:
-                    client = boto3.client(self.resource_type, region_name=self.region)
+                    client = this_session.client(self.resource_type, region_name=self.region)
                     current_applied_tags = client.get_bucket_tagging(
                         Bucket=resource_id
                     )
@@ -498,7 +527,7 @@ class resources_tags:
                 tag_set_dict['TagSet'] = chosen_tags
                 log.debug("The chosen tags for {} are {}".format(resource_id, tag_set_dict))
                 try:
-                    selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+                    selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                     bucket_tagging = selected_resource_type.BucketTagging(resource_id)
                     resource_tag_list = bucket_tagging.put(
                         Tagging=tag_set_dict

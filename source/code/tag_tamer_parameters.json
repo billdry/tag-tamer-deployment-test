@@ -6,7 +6,7 @@
         "selected_regions": [
                 "us-east-1"
         ],
-        "ssm_parameter_path": "/tag-tamer/",
+        "ssm_parameter_path": "/tag-tamer-bdry-dev1/",
         "ssm_parameter_names": [
             "cognito-app-client-id",
             "cognito-app-client-secret-value",
