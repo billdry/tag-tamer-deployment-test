@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-# copyright 2020 Bill Dry
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 # Getter & setter for AWS IAM
 
 # Import AWS module for python

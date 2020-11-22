@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-# copyright 2020 Bill Dry
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 # Tag Tamer's role-based tagger run by AWS Lambda
 
 # Import AWS modules for python
