@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-# copyright 2020 Bill Dry
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 # Getter & setter for AWS SSM Parameter Store
 
 # Import AWS module for python
@@ -26,26 +27,43 @@ class ssm_parameter_store:
         parameter_list = [ssm_parameter_path + name for name in ssm_parameter_names]
         return parameter_list
 
-    # Argument: List of SSM Parameter names including hierarchy paths
+    # Argument: Path prefix for all SSM parameter name.  Example path prefix: /tag-tamer/
     # Returns: SSM Parameter Dictionaries
-    def ssm_get_parameter_details(self, parameter_names):
-        try:
-            get_parameter_response = self.ssm_client.get_parameters(
-                Names=parameter_names,
-                WithDecryption=True
-            )
-            #print("the parameter response is: ", get_parameter_response)
-            parameter_dictionary = dict()
-            for parameter in get_parameter_response['Parameters']:
-                # Remove the path prepending the SSM Parameter name
-                name_components = parameter['Name'].split("/")
-                short_parameter_name = name_components[-1]
-                parameter_dictionary[short_parameter_name] = parameter['Value']
-            
-            #print(parameter_dictionary)
-            
-            return parameter_dictionary
+    def ssm_get_parameter_details(self, ssm_parameter_path):
+        ssm_parameters = dict()
+        def _get_parameter_response(**kwargs):
+            try:
+                if kwargs.get('next_token'):
+                    response = self.ssm_client.get_parameters_by_path(
+                        MaxResults=10,
+                        NextToken=kwargs.get('next_token'),
+                        Path=ssm_parameter_path,
+                        Recursive=False,
+                        WithDecryption=True
+                    )
+                else:
+                    response = self.ssm_client.get_parameters_by_path(
+                        MaxResults=10,
+                        Path=ssm_parameter_path,
+                        Recursive=False,
+                        WithDecryption=True
+                    )
+                log.debug('The parameter response is: %s', response)
+                for parameter in response['Parameters']:
+                    ssm_parameters[parameter['Name']] = parameter['Value']
+                if response.get('NextToken'):
+                    _get_parameter_response(next_token=response.get('NextToken'))
+            except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {}"
+                log.error(errorString.format(error))
+            log.debug('The final parameter response is: %s', ssm_parameters)
 
-        except botocore.exceptions.ClientError as error:
-            errorString = "Boto3 API returned error: {}"
-            log.error(errorString.format(error))
+        _get_parameter_response()
+        parameter_dictionary = dict()
+        for name, value in ssm_parameters.items():
+            # Remove the path prepending the SSM Parameter name
+            name_components = name.split("/")
+            short_parameter_name = name_components[-1]
+            parameter_dictionary[short_parameter_name] = value
+        log.debug('The returned parameter dictionary is: %s', parameter_dictionary)
+        return parameter_dictionary 
