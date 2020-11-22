@@ -2,7 +2,6 @@
 
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-# Author - Bill Dry
 
 # Purpose - functions to retrieve information regarding Amazon Cognito 
 # user pools & users
@@ -30,3 +29,25 @@ def get_user_group_arns(user_name, user_pool_id, region):
         log.error("Boto3 API returned error: {}".format(error))
         group_role_arn = False
     return group_role_arn
+
+def get_user_credentials(user_name, user_pool_id, identity_pool_id, region):
+    user_credentials = dict()
+    group_role_arn_for_user = get_user_group_arns(user_name, user_pool_id, region)
+
+    try:
+        cognito_identity_client = boto3.client('cognito-identity', region_name=region)
+        cognito_identity_response = cognito_identity_client.get_credentials_for_identity(
+            IdentityId=identity_pool_id,
+            Logins={
+                'cognito': user_name
+            },
+            CustomRoleArn=group_role_arn_for_user
+        )
+        user_credentials = cognito_identity_response['Credentials']
+
+    except botocore.exceptions.ClientError as error:
+            log.error("Boto3 API returned error: {}".format(error))
+            user_credentials['AccessKeyId'] = None
+            user_credentials['SecretAccessKey'] = None
+            user_credentials['SessionToken'] = None
+    return user_credentials

@@ -2,7 +2,6 @@
 
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-# Author - Bill Dry
 
 # Purpose - functions to retrieve information regarding Amazon Cognito 
 # user pools & users

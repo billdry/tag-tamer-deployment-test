@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-# copyright 2020 Bill Dry
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 # Tag Tamer Admin UI
 
 # Import administrative functions
@@ -9,7 +10,7 @@ from admin import date_time_now
 import collections
 from collections import defaultdict, OrderedDict
 # Import getter functions for Amazon Cognito
-from cognito_idp import *
+from cognito_idp import get_user_group_arns, get_user_credentials
 # Import getter/setter module for AWS Config
 import config
 from config import config
@@ -32,7 +33,7 @@ from service_catalog import service_catalog
 import ssm_parameter_store
 from ssm_parameter_store import ssm_parameter_store
 # Import AWS STS functions
-from sts import *
+#from sts import get_session_credentials
 # Import Tag Tamer utility functions
 from utilities import *
 
@@ -79,10 +80,10 @@ log.debug('The selected AWS region is: \"%s\"', region)
 ssm_ps = ssm_parameter_store(region)
 # Fully qualified list of SSM Parameter names
 ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameters['parameters']['ssm_parameter_path'], tag_tamer_parameters['parameters']['ssm_parameter_names']) 
+log.debug('The full names are: %s', ssm_parameter_full_names)
 # SSM Parameters names & values
-ssm_parameters = ssm_ps.ssm_get_parameter_details(ssm_parameter_full_names)
-
-#print(ssm_parameters)
+#ssm_parameters = ssm_ps.ssm_get_parameter_details(ssm_parameter_full_names)
+ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters['parameters']['ssm_parameter_path'])
 
 # Instantiate flask API applications
 app = Flask(__name__)
@@ -101,13 +102,11 @@ app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['jwt-cookie-csrf-protect'
 aws_auth = AWSCognitoAuthentication(app)
 jwt = JWTManager(app)
 
+# Get the user's session credentials based on username passed in JWT
 def get_user_session_credentials(user_name):
-    # Get the user's assigned Cognito user pool group
-    cognito_user_group_arn = get_user_group_arns(user_name, 
+    user_session_credentials = get_user_credentials(user_name, 
         ssm_parameters['cognito-user-pool-id-value'],
-        ssm_parameters['cognito-default-region-value'])
-    user_session_credentials = get_session_credentials(cognito_user_group_arn,
-        user_name,
+        ssm_parameters['cognito-identity-pool-id-value'],
         ssm_parameters['cognito-default-region-value'])
     return user_session_credentials
 
@@ -139,8 +138,8 @@ def index():
     claims = aws_auth.claims
     # Get the user's assigned Cognito user pool group
     cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
-        ssm_parameters['/tag-tamer/cognito-user-pool-id-value'],
-        ssm_parameters['/tag-tamer/cognito-default-region-value'])
+        ssm_parameters['cognito-user-pool-id-value'],
+        ssm_parameters['cognito-default-region-value'])
     # Grant access if session time not expired & user assigned to Cognito user pool group
     if time() < claims.get('exp') and cognito_user_group_arn:
         log.info("User \"{}\" signed in on {}".format(claims.get('username'), date_time_now()))
