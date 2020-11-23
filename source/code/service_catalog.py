@@ -25,9 +25,17 @@ log = logging.getLogger(__name__)
 class service_catalog:
     
     #Class constructor
-    def __init__(self, region):
+    def __init__(self, region, **session_credentials):
         self.region = region
-        self.service_catalog_client = boto3.client('servicecatalog', region_name=self.region)
+        self.session_credentials = {}
+        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
+        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
+        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        this_session = boto3.session.Session(
+            aws_access_key_id=self.session_credentials['AccessKeyId'],
+            aws_secret_access_key=self.session_credentials['SecretKey'],
+            aws_session_token=self.session_credentials['SessionToken'])        
+        self.service_catalog_client = this_session.client('servicecatalog', region_name=self.region)
 
     #Method to create an SC TagOption & return the TagOption ID
     def create_sc_tag_option(self, tag_key, tag_value):

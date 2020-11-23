@@ -32,14 +32,16 @@ class resources_tags:
         self.region = region
 
     #Returns a sorted list of all resources for the resource type specified  
-    def get_resources(self, filter_tags, session_credentials):
+    def get_resources(self, filter_tags, **session_credentials):
         
         self.filter_tags = dict()
         self.filter_tags = filter_tags
         log.debug("The received filter tags are: {}".format(self.filter_tags))
 
         self.session_credentials = {}
-        self.session_credentials = session_credentials
+        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
+        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
+        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
             aws_secret_access_key=self.session_credentials['SecretAccessKey'],
@@ -343,12 +345,14 @@ class resources_tags:
 
     # Getter method retrieves every tag:key for object's resource type
     # No input arguments
-    def get_tag_keys(self, session_credentials):
+    def get_tag_keys(self, **session_credentials):
 
         sorted_tag_keys_inventory = list()
 
         self.session_credentials = {}
-        self.session_credentials = session_credentials
+        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
+        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
+        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
             aws_secret_access_key=self.session_credentials['SecretAccessKey'],
@@ -408,12 +412,14 @@ class resources_tags:
 
     # Getter method retrieves every tag:value for object's resource type
     # No input arguments
-    def get_tag_values(self, session_credentials):
+    def get_tag_values(self, **session_credentials):
 
         sorted_tag_values_inventory = list()
 
         self.session_credentials = {}
-        self.session_credentials = session_credentials
+        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
+        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
+        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
             aws_secret_access_key=self.session_credentials['SecretAccessKey'],
@@ -472,12 +478,14 @@ class resources_tags:
         return sorted_tag_values_inventory
 
     #Setter method to update tags on user-selected resources 
-    def set_resources_tags(self, resources_to_tag, chosen_tags, session_credentials):
+    def set_resources_tags(self, resources_to_tag, chosen_tags, **session_credentials):
 
         resources_updated_tags = {}
 
         self.session_credentials = {}
-        self.session_credentials = session_credentials
+        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
+        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
+        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
             aws_secret_access_key=self.session_credentials['SecretAccessKey'],

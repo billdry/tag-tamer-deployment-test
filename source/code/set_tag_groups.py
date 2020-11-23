@@ -17,10 +17,18 @@ log = logging.getLogger(__name__)
 class set_tag_group:
 
     #Class constructor
-    def __init__(self, region):
+    def __init__(self, region, **session_credentials):
         self.region = region
         self.tag_groups = {}
-        self.dynamodb = boto3.resource('dynamodb', region_name=self.region)
+        self.session_credentials = {}
+        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
+        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
+        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        this_session = boto3.session.Session(
+            aws_access_key_id=self.session_credentials['AccessKeyId'],
+            aws_secret_access_key=self.session_credentials['SecretKey'],
+            aws_session_token=self.session_credentials['SessionToken'])        
+        self.dynamodb = this_session.resource('dynamodb', region_name=self.region)
         self.table = self.dynamodb.Table('tag_tamer_tag_groups')
     
     #Setter to instantiate a new Tag Group adding its tag key & range of tag values
@@ -70,4 +78,3 @@ class set_tag_group:
                 log.error(errorString.format(error))
                 update_item_response = errorString.format(error)
         return update_item_response
-

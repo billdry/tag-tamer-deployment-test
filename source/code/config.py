@@ -18,9 +18,17 @@ log = logging.getLogger(__name__)
 class config:
     
     #Class constructor
-    def __init__(self, region):
+    def __init__(self, region, **session_credentials):
         self.region = region
-        self.config_client = boto3.client('config', region_name=self.region)
+        self.session_credentials = {}
+        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
+        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
+        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        this_session = boto3.session.Session(
+            aws_access_key_id=self.session_credentials['AccessKeyId'],
+            aws_secret_access_key=self.session_credentials['SecretKey'],
+            aws_session_token=self.session_credentials['SessionToken'])
+        self.config_client = this_session.client('config', region_name=self.region)
 
     #Get REQUIRED_TAGS Config Rule name & input parameters
     def get_config_rule(self, config_rule_id):

@@ -168,8 +168,8 @@ def find_tags():
 @aws_auth.authentication_required
 def found_tags():
     resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-    claims = aws_auth.claims
-    log.debug('The claims in the received JWT are: %s', claims)
+    #claims = aws_auth.claims
+    #log.debug('The claims in the received JWT are: %s', claims)
     log.debug('The received cookies are: %s', request.cookies.items())
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     inventory = resources_tags(resource_type, unit, region)
@@ -186,9 +186,8 @@ def type_to_tag_group():
 @app.route('/get-tag-group-names', methods=['POST'])
 @aws_auth.authentication_required
 def get_tag_group_names():
-    claims = aws_auth.claims
-    session_credentials = get_user_session_credentials(claims.get('username'))
-    all_tag_groups = get_tag_groups(region)
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
+    all_tag_groups = get_tag_groups(region, **session_credentials)
     tag_group_names = all_tag_groups.get_tag_group_names()
     
     resource_type, _ = get_resource_type_unit(request.form.get('resource_type'))
@@ -200,8 +199,7 @@ def get_tag_group_names():
 @aws_auth.authentication_required
 def edit_tag_group():
     resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-    claims = aws_auth.claims
-    session_credentials = get_user_session_credentials(claims.get('username'))
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     inventory = resources_tags(resource_type, unit, region)
     sorted_tag_values_inventory = inventory.get_tag_values(**session_credentials)
 
@@ -245,18 +243,17 @@ def add_update_tag_group():
         new_tag_group_values = [value.strip(" ") for value in new_tag_group_values]
         tag_group_value_options.extend(new_tag_group_values)
 
-    tag_group = set_tag_group(region)
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
+    tag_group = set_tag_group(region, **session_credentials)
     if tag_group_action == "create":
         new_tag_group = tag_group.create_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
     else:
         updated_tag_group = tag_group.update_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
 
-    tag_groups = get_tag_groups(region)
+    tag_groups = get_tag_groups(region, **session_credentials)
     tag_group_key_values = tag_groups.get_tag_group_key_values(tag_group_name)
 
     resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-    claims = aws_auth.claims
-    session_credentials = get_user_session_credentials(claims.get('username'))
     inventory = resources_tags(resource_type, unit, region)
     sorted_tag_values_inventory = inventory.get_tag_values(**session_credentials)
 
@@ -286,8 +283,7 @@ def tag_filter():
 def tag_based_search():
     if request.args.get('resource_type'):
         resource_type, unit = get_resource_type_unit(request.args.get('resource_type'))
-        claims = aws_auth.claims
-        session_credentials = get_user_session_credentials(claims.get('username'))
+        session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
         inventory = resources_tags(resource_type, unit, region)
         selected_tag_keys = inventory.get_tag_keys(**session_credentials)
         selected_tag_values = inventory.get_tag_values(**session_credentials)
@@ -318,8 +314,7 @@ def tag_resources():
             filter_elements['conjunction'] = request.form.get('conjunction')
         
         resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-        claims = aws_auth.claims
-        session_credentials = get_user_session_credentials(claims.get('username'))
+        session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
         chosen_resource_inventory = resources_tags(resource_type, unit, region)
         chosen_resources = OrderedDict()
         chosen_resources = chosen_resource_inventory.get_resources(**filter_elements, **session_credentials)
@@ -341,8 +336,7 @@ def apply_tags_to_resources():
         form_contents.pop("resources_to_tag")
     
         resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-        claims = aws_auth.claims
-        session_credentials = get_user_session_credentials(claims.get('username'))
+        session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
         chosen_resources_to_tag = resources_tags(resource_type, unit, region) 
         form_contents.pop("resource_type")
 
@@ -368,17 +362,16 @@ def apply_tags_to_resources():
 @app.route('/get-service-catalog', methods=['GET'])
 @aws_auth.authentication_required
 def get_service_catalog():
-    claims = aws_auth.claims
-    session_credentials = get_user_session_credentials(claims.get('username'))
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     #Get the Tag Group names & associated tag keys
     tag_group_inventory = dict()
-    tag_groups = get_tag_groups(region)
+    tag_groups = get_tag_groups(region, **session_credentials)
     tag_group_inventory = tag_groups.get_tag_group_names()
 
     #Get the Service Catalog product templates
     sc_product_ids_names = dict()
     #sc_product_names = list()
-    sc_products = service_catalog(region)
+    sc_products = service_catalog(region, **session_credentials)
     sc_product_ids_names = sc_products.get_sc_product_templates()
     
 
@@ -388,8 +381,7 @@ def get_service_catalog():
 @app.route('/set-service-catalog', methods=['POST'])
 @aws_auth.authentication_required
 def set_service_catalog():
-    claims = aws_auth.claims
-    session_credentials = get_user_session_credentials(claims.get('username'))
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if request.form.getlist('tag_groups_to_assign') and request.form.getlist('chosen_sc_product_template_ids'):
         selected_tag_groups = list()
         selected_tag_groups = request.form.getlist('tag_groups_to_assign')
@@ -398,7 +390,7 @@ def set_service_catalog():
 
         #Get the Service Catalog product templates
         sc_product_ids_names = dict()
-        sc_products = service_catalog(region)
+        sc_products = service_catalog(region, **session_credentials)
         sc_product_ids_names = sc_products.get_sc_product_templates()
 
         #Assign every tag in selected Tag Groups to selected SC product templates
@@ -418,16 +410,15 @@ def set_service_catalog():
 @app.route('/find-config-rules', methods=['GET'])
 @aws_auth.authentication_required
 def find_config_rules():
-    claims = aws_auth.claims
-    session_credentials = get_user_session_credentials(claims.get('username'))
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     #Get the Tag Group names & associated tag keys
     tag_group_inventory = dict()
-    tag_groups = get_tag_groups(region)
+    tag_groups = get_tag_groups(region, **session_credentials)
     tag_group_inventory = tag_groups.get_tag_group_names()
 
     #Get the AWS Config Rules
     config_rules_ids_names = dict()
-    config_rules = config(region)
+    config_rules = config(region, **session_credentials)
     config_rules_ids_names = config_rules.get_config_rules_ids_names()
     
     return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
@@ -436,8 +427,7 @@ def find_config_rules():
 @app.route('/update-config-rules', methods=['POST'])
 @aws_auth.authentication_required
 def set_config_rules():
-    claims = aws_auth.claims
-    session_credentials = get_user_session_credentials(claims.get('username'))
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if request.form.getlist('tag_groups_to_assign') and request.form.getlist('chosen_config_rule_ids'):
         selected_tag_groups = list()
         selected_tag_groups = request.form.getlist('tag_groups_to_assign')
@@ -445,7 +435,7 @@ def set_config_rules():
         selected_config_rules = request.form.getlist('chosen_config_rule_ids')
         config_rule_id = selected_config_rules[0]
 
-        tag_groups = get_tag_groups(region)
+        tag_groups = get_tag_groups(region, **session_credentials)
         tag_group_key_values = dict()
         tag_groups_keys_values = dict()
         tag_count=1
@@ -460,7 +450,7 @@ def set_config_rules():
                 tag_groups_keys_values[value_name] = tag_group_values_string
                 tag_count+=1
 
-        config_rules = config(region)
+        config_rules = config(region, **session_credentials)
         config_rules.set_config_rules(tag_groups_keys_values, config_rule_id)
         updated_config_rule = config_rules.get_config_rule(config_rule_id)
 
@@ -472,12 +462,11 @@ def set_config_rules():
 @app.route('/select-roles-tags', methods=['GET'])
 @aws_auth.authentication_required
 def select_roles_tags():
-    claims = aws_auth.claims
-    session_credentials = get_user_session_credentials(claims.get('username'))
-    tag_group_inventory = get_tag_groups(region)
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
+    tag_group_inventory = get_tag_groups(region, **session_credentials)
     tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values()
 
-    iam_roles = roles(region)
+    iam_roles = roles(region, **session_credentials)
     #Initially get AWS SSO Roles
     path_prefix = "/aws-reserved/sso.amazonaws.com/"
     roles_inventory = iam_roles.get_roles(path_prefix)
@@ -488,8 +477,7 @@ def select_roles_tags():
 @app.route('/set-roles-tags', methods=['POST'])
 @aws_auth.authentication_required
 def set_roles_tags():
-    claims = aws_auth.claims
-    session_credentials = get_user_session_credentials(claims.get('username'))
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if request.form.get('roles_to_tag'):
         role_name = request.form.get('roles_to_tag')
         form_contents = request.form.to_dict()
@@ -503,7 +491,7 @@ def set_roles_tags():
                 tag_kv["Value"] = value
                 chosen_tags.append(tag_kv)
 
-        role_to_tag = roles(region)
+        role_to_tag = roles(region, **session_credentials)
         role_to_tag.set_role_tags(role_name, chosen_tags)
 
         return render_template('actions.html')
