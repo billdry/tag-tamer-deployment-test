@@ -10,7 +10,7 @@ from admin import date_time_now
 import collections
 from collections import defaultdict, OrderedDict
 # Import getter functions for Amazon Cognito
-from cognito_idp import get_user_group_arns, get_user_credentials, get_user_id_token
+from cognito_idp import get_user_group_arns, get_user_credentials
 # Import getter/setter module for AWS Config
 import config
 from config import config
@@ -103,9 +103,8 @@ aws_auth = AWSCognitoAuthentication(app)
 jwt = JWTManager(app)
 
 # Get the user's session credentials based on username passed in JWT
-def get_user_session_credentials(user_name, cognito_id_token):
-    user_session_credentials = get_user_credentials(user_name,
-        cognito_id_token, 
+def get_user_session_credentials(cognito_id_token):
+    user_session_credentials = get_user_credentials(cognito_id_token,
         ssm_parameters['cognito-user-pool-id-value'],
         ssm_parameters['cognito-identity-pool-id-value'],
         ssm_parameters['cognito-default-region-value'])
@@ -121,13 +120,9 @@ def sign_in():
 @app.route('/aws_cognito_redirect', methods=['GET'])
 def aws_cognito_redirect():
     access_token = False
-    log.info('The request arguments are %s', request.args)
-    access_token, id_token = aws_auth.get_tokens(request.args)
     id_token = False
-    id_token = get_user_id_token(access_token,
-        ssm_parameters['cognito-user-pool-id-value'],
-        ssm_parameters['cognito-identity-pool-id-value'],
-        ssm_parameters['cognito-default-region-value'])
+    log.debug('The request arguments are %s', request.args)
+    access_token, id_token = aws_auth.get_tokens(request.args)
     if access_token and id_token:    
         response = make_response(render_template('redirect.html'))
         response.set_cookie('access_token', value=access_token)
@@ -174,9 +169,9 @@ def find_tags():
 def found_tags():
     resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
     claims = aws_auth.claims
-    log.info('The claims in the received JWT are: %s', claims)
+    log.debug('The claims in the received JWT are: %s', claims)
     log.debug('The received cookies are: %s', request.cookies.items())
-    session_credentials = get_user_session_credentials(claims.get('username'), request.cookies.get('id_token'))
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     inventory = resources_tags(resource_type, unit, region)
     sorted_tagged_inventory = inventory.get_resources_tags(**session_credentials)
     return render_template('found-tags.html', inventory=sorted_tagged_inventory)

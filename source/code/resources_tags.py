@@ -268,19 +268,19 @@ class resources_tags:
             
     # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
     # No input arguments
-    def get_resources_tags(self, session_credentials):
-        log.info('The received session credentials are: %s', session_credentials)
+    def get_resources_tags(self, **session_credentials):
+        log.debug('The received session credentials are: %s', session_credentials)
         # Instantiate dictionaries to hold resources & their tags
         tagged_resource_inventory = {}
         sorted_tagged_resource_inventory = {}
 
         self.session_credentials = {}
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretAccessKey'] = session_credentials['SecretAccessKey']
+        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretAccessKey'],
+            aws_secret_access_key=self.session_credentials['SecretKey'],
             aws_session_token=self.session_credentials['SessionToken'])
         
         # Interate through resources & inject resource ID's with user-defined tag key:value pairs per resource into a nested dictionary
