@@ -31,8 +31,11 @@ def index():
 
 @app.route('/aws_cognito_redirect')
 def aws_cognito_redirect():
-    access_token = aws_auth.get_access_token(request.args)
-    return jsonify({'access_token': access_token})
+    # Modified to return access_token & id_token
+    #access_token = aws_auth.get_access_token(request.args)
+    access_token, id_token = aws_auth.get_tokens(request.args)
+    #return jsonify({'access_token': access_token})
+    return jsonify({'access_token': access_token, 'id_token': id_token})
 
 
 @app.route('/sign_in')

@@ -14,7 +14,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="Flask-AWSCognito",
-    version="1.2.7",
+    version="1.2.8",
     url="https://github.com/billdry/Flask-AWSCognito/",
     license="MIT",
     author="Bill Dry",

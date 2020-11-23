@@ -30,19 +30,46 @@ def get_user_group_arns(user_name, user_pool_id, region):
         group_role_arn = False
     return group_role_arn
 
-def get_user_credentials(user_name, user_pool_id, identity_pool_id, region):
+def get_user_id_token(access_token, user_pool_id, identity_pool_id, region):
+    idp_name = 'cognito-idp.' + region + '.amazonaws.com/' + user_pool_id
+    try:
+        cognito_identity_client = boto3.client('cognito-identity', region_name=region)
+        identity_id_response = cognito_identity_client.get_open_id_token_for_developer_identity(
+            IdentityPoolId=identity_pool_id,
+            Logins={
+                idp_name: access_token
+            }
+        )
+        log.info('The Cognito identity is: %s', identity_id_response)
+        return identity_id_response['Token']
+        #identity_id = identity_id_response['IdentityId']
+    except botocore.exceptions.ClientError as error:
+            log.error("Boto3 API returned error: {}".format(error))
+            return False
+
+def get_user_credentials(user_name, cognito_id_token, user_pool_id, identity_pool_id, region):
     user_credentials = dict()
+    idp_name = 'cognito-idp.' + region + '.amazonaws.com/' + user_pool_id
     group_role_arn_for_user = get_user_group_arns(user_name, user_pool_id, region)
 
     try:
         cognito_identity_client = boto3.client('cognito-identity', region_name=region)
-        cognito_identity_response = cognito_identity_client.get_credentials_for_identity(
-            IdentityId=identity_pool_id,
+        identity_id_response = cognito_identity_client.get_id(
+            IdentityPoolId=identity_pool_id,
             Logins={
-                'cognito': user_name
+                idp_name: cognito_id_token
+            }
+        )
+        log.info('The Cognito identity is: %s', identity_id_response)
+        identity_id = identity_id_response['IdentityId']
+        cognito_identity_response = cognito_identity_client.get_credentials_for_identity(
+            IdentityId=identity_id,
+            Logins={
+                idp_name: cognito_id_token
             },
             CustomRoleArn=group_role_arn_for_user
         )
+        log.info('The Cognito user credentials are: %s', cognito_identity_response)
         user_credentials = cognito_identity_response['Credentials']
 
     except botocore.exceptions.ClientError as error:
