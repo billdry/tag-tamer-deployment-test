@@ -59,6 +59,6 @@ def get_user_credentials(cognito_id_token, user_pool_id, identity_pool_id, regio
     except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             user_credentials['AccessKeyId'] = None
-            user_credentials['SecretAccessKey'] = None
+            user_credentials['SecretKey'] = None
             user_credentials['SessionToken'] = None
     return user_credentials

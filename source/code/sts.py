@@ -30,7 +30,7 @@ def get_session_credentials(role_arn, user_name, region):
     except botocore.exceptions.ClientError as error:
         log.error("Boto3 API returned error: {}".format(error))
         session_credentials['AccessKeyId'] = None
-        session_credentials['SecretAccessKey'] = None
+        session_credentials['SecretKey'] = None
         session_credentials['SessionToken'] = None
     return session_credentials
 

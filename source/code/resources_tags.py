@@ -44,7 +44,7 @@ class resources_tags:
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretAccessKey'],
+            aws_secret_access_key=self.session_credentials['SecretKey'],
             aws_session_token=self.session_credentials['SessionToken'])
         
         client = this_session.client(self.resource_type, region_name=self.region)
@@ -261,7 +261,7 @@ class resources_tags:
 
         elif self.unit == "functions":
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            named_resource_inventory = functions_inventory.get_lambda_names_ids(self.filter_tags)
+            named_resource_inventory = functions_inventory.get_lambda_names_ids(self.filter_tags, **self.session_credentials)
         
         # Sort the resources based on the resource's name
         ordered_inventory = OrderedDict()
@@ -337,7 +337,7 @@ class resources_tags:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            tagged_resource_inventory = functions_inventory.get_lambda_resources_tags()
+            tagged_resource_inventory = functions_inventory.get_lambda_resources_tags(**self.session_credentials)
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
 
@@ -355,7 +355,7 @@ class resources_tags:
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretAccessKey'],
+            aws_secret_access_key=self.session_credentials['SecretKey'],
             aws_session_token=self.session_credentials['SessionToken'])
 
         if self.unit == 'instances':
@@ -402,7 +402,7 @@ class resources_tags:
                 sorted_tag_keys_inventory.append("No Tags Found")
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            sorted_tag_keys_inventory = functions_inventory.get_lambda_tag_keys()
+            sorted_tag_keys_inventory = functions_inventory.get_lambda_tag_keys(**self.session_credentials)
 
         #Remove duplicate tags & sort
         sorted_tag_keys_inventory = list(set(sorted_tag_keys_inventory))
@@ -422,7 +422,7 @@ class resources_tags:
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretAccessKey'],
+            aws_secret_access_key=self.session_credentials['SecretKey'],
             aws_session_token=self.session_credentials['SessionToken'])
 
         if self.unit == 'instances':
@@ -469,7 +469,7 @@ class resources_tags:
                 sorted_tag_values_inventory.append("No Tags Found")
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            sorted_tag_values_inventory = functions_inventory.get_lambda_tag_values()
+            sorted_tag_values_inventory = functions_inventory.get_lambda_tag_values(**self.session_credentials)
 
         #Remove duplicate tags & sort
         sorted_tag_values_inventory = list(set(sorted_tag_values_inventory))
@@ -488,7 +488,7 @@ class resources_tags:
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretAccessKey'],
+            aws_secret_access_key=self.session_credentials['SecretKey'],
             aws_session_token=self.session_credentials['SessionToken'])
 
         if self.unit == 'instances':
@@ -551,6 +551,6 @@ class resources_tags:
                     resources_updated_tags["No Resources Found"] = "No Tags Applied"
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            resources_updated_tags = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags)
+            resources_updated_tags = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags, **self.session_credentials)
         
         return resources_updated_tags             

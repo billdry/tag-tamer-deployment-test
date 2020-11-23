@@ -207,7 +207,7 @@ def edit_tag_group():
     # a new Tag Group name reload this route until valid user input given
     if request.form.get('tag_group_name'):    
         selected_tag_group_name = request.form.get('tag_group_name')
-        tag_group = get_tag_groups(region)
+        tag_group = get_tag_groups(region, **session_credentials)
         tag_group_key_values = tag_group.get_tag_group_key_values(selected_tag_group_name)
         return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
     elif request.form.get('new_tag_group_name'):
@@ -317,9 +317,9 @@ def tag_resources():
         session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
         chosen_resource_inventory = resources_tags(resource_type, unit, region)
         chosen_resources = OrderedDict()
-        chosen_resources = chosen_resource_inventory.get_resources(**filter_elements, **session_credentials)
-        tag_group_inventory = get_tag_groups(region)
-        tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values()
+        chosen_resources = chosen_resource_inventory.get_resources(filter_elements, **session_credentials)
+        tag_group_inventory = get_tag_groups(region, **session_credentials)
+        tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
         return render_template('tag-resources.html', resource_type=resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
     else:
         return render_template('blank.html')
@@ -464,7 +464,7 @@ def set_config_rules():
 def select_roles_tags():
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     tag_group_inventory = get_tag_groups(region, **session_credentials)
-    tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values()
+    tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
 
     iam_roles = roles(region, **session_credentials)
     #Initially get AWS SSO Roles

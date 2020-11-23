@@ -69,10 +69,11 @@ class get_tag_groups:
 
     #Returns a list of 3-item groups where every 3-item group includes actual_tag_group_name, actual_tag_group_key
     #& a list[actual_tag_group_values]
-    def get_all_tag_groups_key_values(self):
+    def get_all_tag_groups_key_values(self, region, **session_credentials):
         all_tag_groups_info = list()
         
-        inventory = get_tag_groups("us-east-1")
+        #inventory = get_tag_groups("us-east-1")
+        inventory = get_tag_groups(region, **session_credentials)
         tag_groups_keys = inventory.get_tag_group_names()
         
         for tag_group_name, tag_group_key in tag_groups_keys.items():
