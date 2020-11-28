@@ -5,9 +5,14 @@
 # Getter delivering Tag Group attributes.  Returns output as dictionaries & lists
 
 # Import AWS module for python
+import botocore
 import boto3
 # Import Collections module to manipulate dictionaries
 import collections
+# Import logging module
+import logging
+
+log = logging.getLogger(__name__)
 
 # Define get_tag_groups class
 class get_tag_groups:
@@ -26,21 +31,22 @@ class get_tag_groups:
             aws_session_token=self.session_credentials['SessionToken'])
         self.dynamodb = this_session.resource('dynamodb', region_name=self.region)
         self.table = self.dynamodb.Table('tag_tamer_tag_groups')
-    
+        #self.dynamodb_client = this_session.client('dynamodb', region_name=self.region)
+
     #Returns a dictionary of actual_tag_group_name:actual_tag_group_key key:value pairs
     def get_tag_group_names(self):
         tag_group_names={}
         sorted_tag_group_names={}
         
-        scan_response = self.table.scan(
-            #IndexName='tag_group_name-index',
-            #TableName='tag_groups',
-            ProjectionExpression="key_name, tag_group_name"
-            )        
         try:
+            scan_response = self.table.scan(
+            ProjectionExpression="key_name, tag_group_name"
+            )   
+            log.debug("The DynamoDB scan response is: %s", scan_response)
             for item in scan_response["Items"]:
                 tag_group_names[item["tag_group_name"]] = item["key_name"]
-        except:
+        except botocore.exceptions.ClientError as error:
+            log.error("Boto3 API returned error: {}".format(error))
             tag_group_names["No Tag Groups Found"] = "No Tag Groups Found"
         
         sorted_tag_group_names = collections.OrderedDict(sorted(tag_group_names.items()))
@@ -52,18 +58,17 @@ class get_tag_groups:
     def get_tag_group_key_values(self, tag_group_name):
         tag_group_key_values = {}
         sorted_tag_group_values = list()
-
-        get_item_response = self.table.get_item(Key={'tag_group_name': tag_group_name})
-
         try:
-            if len(get_item_response["Item"]["key_name"]):
+            get_item_response = self.table.get_item(Key={'tag_group_name': tag_group_name})
+            if len(get_item_response["Item"]["tag_group_name"]):
                 tag_group_key_values['tag_group_key'] = get_item_response["Item"]["key_name"]
                 sorted_tag_group_values = get_item_response["Item"]["key_values"]
                 sorted_tag_group_values.sort(key=str.lower)
                 tag_group_key_values['tag_group_values'] = sorted_tag_group_values
-        except:
-                tag_group_key_values['tag_group_key'] = "No Tag Group Key Found"
-                tag_group_key_values['tag_group_values'] = "No Tag Group Values Found" 
+        except botocore.exceptions.ClientError as error:
+            log.error("Boto3 API returned error: {}".format(error))
+            tag_group_key_values['tag_group_key'] = "No Tag Group Key Found"
+            tag_group_key_values['tag_group_values'] = "No Tag Group Values Found" 
         
         return tag_group_key_values
 
@@ -72,7 +77,6 @@ class get_tag_groups:
     def get_all_tag_groups_key_values(self, region, **session_credentials):
         all_tag_groups_info = list()
         
-        #inventory = get_tag_groups("us-east-1")
         inventory = get_tag_groups(region, **session_credentials)
         tag_groups_keys = inventory.get_tag_group_names()
         

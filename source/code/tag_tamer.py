@@ -39,7 +39,7 @@ from utilities import *
 
 # Import flask framework module & classes to build API's
 import flask, flask_wtf
-from flask import Flask, jsonify, make_response, redirect, render_template, request, url_for
+from flask import Flask, flash, jsonify, make_response, redirect, render_template, request, url_for
 # Use only flask_awscognito version 1.2.6 or higher from Tag Tamer
 from flask_awscognito import AWSCognitoAuthentication
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
@@ -347,8 +347,8 @@ def apply_tags_to_resources():
                 tag_kv["Key"] = key
                 tag_kv["Value"] = value
                 chosen_tags.append(tag_kv)
-        chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
-        
+        execution_status = chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
+        flash(execution_status['status_message'], execution_status['alert_level'])
         updated_sorted_tagged_inventory = {}
         all_sorted_tagged_inventory = chosen_resources_to_tag.get_resources_tags(**session_credentials)
         for resource_id in resources_to_tag:

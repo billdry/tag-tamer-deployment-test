@@ -480,9 +480,12 @@ class resources_tags:
     #Setter method to update tags on user-selected resources 
     def set_resources_tags(self, resources_to_tag, chosen_tags, **session_credentials):
 
-        resources_updated_tags = {}
+        alert_level = 'success'
+        execution_status = dict()
+        resources_updated_tags = dict()
+        status_message = 'Tags updated successfully!'
 
-        self.session_credentials = {}
+        self.session_credentials = dict()
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
@@ -501,8 +504,15 @@ class resources_tags:
                             Tags=chosen_tags
                         )
                 resources_updated_tags[resource_id] = resource_tag_list
-            except:
+            except botocore.exceptions.ClientError as error:
+                log.error("Boto3 API returned error: resource {} - {}".format(resource_id, error))
+                #log.error(error.response)
                 resources_updated_tags["No Resources Found"] = "No Tags Applied"
+                alert_level = 'danger'
+                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to change tags'
+                else:
+                    status_message = error.response['Error']['Message']
         elif self.unit == 'volumes':
             try:
                 selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
@@ -513,8 +523,15 @@ class resources_tags:
                             Tags=chosen_tags
                         )
                 resources_updated_tags[resource_id] = resource_tag_list
-            except:
+            except botocore.exceptions.ClientError as error:
+                log.error("Boto3 API returned error: resource {} - {}".format(resource_id, error))
+                log.error(error.response)
                 resources_updated_tags["No Resources Found"] = "No Tags Applied"
+                alert_level = 'danger'
+                if error.response['Error']['Code'] == 'AccessDeniedException':
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to change tags'
+                else:
+                    status_message = error.response['Error']['Message']
         elif self.unit == 'buckets':
             for resource_id in resources_to_tag:
                 tag_set_dict = dict()
@@ -527,8 +544,14 @@ class resources_tags:
                     )
                     log.debug("The existing tags for {} are {}".format(resource_id, current_applied_tags))
                 except botocore.exceptions.ClientError as error:
-                    errorString = "Boto3 API returned error: {} {}"
+                    errorString = "Boto3 API returned error: resource {} - {}"
                     log.error(errorString.format(resource_id, error))
+                    log.error(error.response)
+                    alert_level = 'danger'
+                    if error.response['Error']['Code'] == 'AccessDeniedException':
+                        status_message = error.response['Error']['Code'] + ' - You are not authorized to change tags'
+                    else:
+                        status_message = error.response['Error']['Message']
 
                 if current_applied_tags.get('TagSet'):
                     for current_tag in current_applied_tags['TagSet']:
@@ -548,9 +571,18 @@ class resources_tags:
                 except botocore.exceptions.ClientError as error:
                     errorString = "Boto3 API returned error: {} {}"
                     log.error(errorString.format(resource_id, error))
+                    log.error(error.response)
                     resources_updated_tags["No Resources Found"] = "No Tags Applied"
+                    alert_level = 'danger'
+                    if error.response['Error']['Code'] == 'AccessDeniedException':
+                        status_message = error.response['Error']['Code'] + ' - You are not authorized to change tags'
+                    else:
+                        status_message = error.response['Error']['Message']
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             resources_updated_tags = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags, **self.session_credentials)
         
-        return resources_updated_tags             
+        #return resources_updated_tags
+        execution_status['alert_level'] = alert_level
+        execution_status['status_message'] = status_message
+        return execution_status
