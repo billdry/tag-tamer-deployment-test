@@ -13,3 +13,35 @@ def date_time_now():
     return time_string
   
 
+# Define execution_status class to return the execution status of Tag Tamer functions
+# alert_level variable aligns to getbootstrap_com/docs/4.5/components/alerts/
+class execution_status:
+    
+        #Class constructor
+        def __init__(self):
+            self.status = dict()
+
+        def success(self, **kwargs):
+            if kwargs.get('message'):
+                self.status['status_message'] = kwargs['message']
+            else:
+                self.status['status_message'] = 'Your update was successful.'
+            self.status['alert_level'] = 'success'
+        
+        def warning(self, **kwargs):
+            if kwargs.get('message'):
+                self.status['status_message'] = kwargs['message']
+            else:
+                self.status['status_message'] = 'Please contact your Tag Tamer administrator.'
+            self.status['alert_level'] = 'warning'
+
+        def error(self, **kwargs):
+            if kwargs.get('message'):
+                self.status['status_message'] = kwargs['message']
+            else:
+                self.status['status_message'] = 'An error occurred.  Please check Tag Tamer log for error details.'
+            self.status['alert_level'] = 'danger'
+        
+        def get_status(self):
+            return self.status
+            

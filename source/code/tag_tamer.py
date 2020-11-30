@@ -351,9 +351,9 @@ def apply_tags_to_resources():
         flash(execution_status['status_message'], execution_status['alert_level'])
         updated_sorted_tagged_inventory = {}
         all_sorted_tagged_inventory = chosen_resources_to_tag.get_resources_tags(**session_credentials)
-        for resource_id in resources_to_tag:
-            updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]
-        
+        if execution_status.get('alert_level') == 'success':
+            for resource_id in resources_to_tag:
+                updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]   
         return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
     else:
         return render_template('blank.html')

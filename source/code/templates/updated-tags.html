@@ -26,6 +26,7 @@ SPDX-License-Identifier: MIT-0 -->
         {% endif %}
         {% endwith %}
         <br>
+        {% if inventory %}
         <h3>Here are your selected resources with updated tags</h3>
         <br>
         <table style="width:800px" class="table table-bordered table-striped">
@@ -55,6 +56,7 @@ SPDX-License-Identifier: MIT-0 -->
                 </tr>
                 {% endfor %}
         </table>
+        {% endif %}
     
         <div class="container">
             <form method="get" action="{{ url_for('actions') }}" target="home_iframe">
