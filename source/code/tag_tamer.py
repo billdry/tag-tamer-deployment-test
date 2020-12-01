@@ -340,21 +340,23 @@ def apply_tags_to_resources():
         chosen_resources_to_tag = resources_tags(resource_type, unit, region) 
         form_contents.pop("resource_type")
 
-        chosen_tags = []
+        chosen_tags = list()
         for key, value in form_contents.items():
             if value:
-                tag_kv = {}
+                tag_kv = dict()
                 tag_kv["Key"] = key
                 tag_kv["Value"] = value
                 chosen_tags.append(tag_kv)
         execution_status = chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
         flash(execution_status['status_message'], execution_status['alert_level'])
-        updated_sorted_tagged_inventory = {}
-        all_sorted_tagged_inventory = chosen_resources_to_tag.get_resources_tags(**session_credentials)
         if execution_status.get('alert_level') == 'success':
+            updated_sorted_tagged_inventory = dict()
+            all_sorted_tagged_inventory = chosen_resources_to_tag.get_resources_tags(**session_credentials)
             for resource_id in resources_to_tag:
                 updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]   
-        return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
+            return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
+        else:
+            return render_template('blank.html')
     else:
         return render_template('blank.html')
 

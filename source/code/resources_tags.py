@@ -482,10 +482,7 @@ class resources_tags:
     #Setter method to update tags on user-selected resources 
     def set_resources_tags(self, resources_to_tag, chosen_tags, **session_credentials):
 
-        #alert_level = 'success'
-        #execution_status = dict()
         resources_updated_tags = dict()
-        #status_message = 'Tags updated successfully!'
         my_status = execution_status()
 
         self.session_credentials = dict()
@@ -512,13 +509,11 @@ class resources_tags:
                 log.error("Boto3 API returned error: resource {} - {}".format(resource_id, error))
                 #log.error(error.response)
                 resources_updated_tags["No Resources Found"] = "No Tags Applied"
-                #alert_level = 'danger'
                 if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
                     status_message = error.response['Error']['Code'] + ' - You are not authorized to change tags'
                     my_status.error(message=status_message)
                 else:
                     my_status.error(message=error.response['Error']['Message'])
-                    #status_message = error.response['Error']['Message']
         elif self.unit == 'volumes':
             try:
                 selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
@@ -540,7 +535,6 @@ class resources_tags:
                     my_status.error(message=status_message)
                 else:
                     my_status.error(message=error.response['Error']['Message'])
-                    #status_message = error.response['Error']['Message']
         elif self.unit == 'buckets':
             for resource_id in resources_to_tag:
                 tag_set_dict = dict()
@@ -594,10 +588,7 @@ class resources_tags:
                         status_message = error.response['Error']['Message']
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            resources_updated_tags = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags, **self.session_credentials)
-        
-        #return resources_updated_tags
-        #execution_status['alert_level'] = alert_level
-        #execution_status['status_message'] = status_message
-        #return execution_status
+            lambda_resources_status = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags, **self.session_credentials)
+            return lambda_resources_status
+
         return my_status.get_status()

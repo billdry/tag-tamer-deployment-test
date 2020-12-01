@@ -13,7 +13,8 @@
 #  method - get_lambda_tag_values
 #  method - set_lambda_resources_tags
 
-
+# Import administrative functions
+from admin import execution_status
 # Import AWS module for python
 import boto3, botocore
 # Import collections to use ordered dictionaries for storage
@@ -117,8 +118,6 @@ class lambda_resources_tags:
                 (False, False, False, False): _intersection_ffff
             }
                 
-
-
             try:
                 client = this_session.client(self.resource_type, region_name=self.region)
                 # Get all the Lambda functions in the region
@@ -232,7 +231,7 @@ class lambda_resources_tags:
         # Instantiate dictionaries to hold resources & their tags
         tagged_resource_inventory = dict()
 
-        self.session_credentials = {}
+        self.session_credentials = dict()
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
@@ -246,8 +245,8 @@ class lambda_resources_tags:
             # Get all the Lambda functions in the region
             my_functions = client.list_functions()
             for item in my_functions['Functions']:
-                resource_tags = {}
-                sorted_resource_tags = {}
+                resource_tags = dict()
+                sorted_resource_tags = dict()
                 function_arn = item['FunctionArn']
                 try:
                     # Get all the tags for a given Lambda function
@@ -274,7 +273,7 @@ class lambda_resources_tags:
     def get_lambda_tag_keys(self, **session_credentials):
         tag_keys_inventory = list()
 
-        self.session_credentials = {}
+        self.session_credentials = dict()
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
@@ -318,7 +317,7 @@ class lambda_resources_tags:
     def get_lambda_tag_values(self, **session_credentials):
         tag_values_inventory = list()
 
-        self.session_credentials = {}
+        self.session_credentials = dict()
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
@@ -360,10 +359,11 @@ class lambda_resources_tags:
     # Setter method to update tags on user-selected resources 
     # 2 inputs - list of resource Lambda arns to tag, list of individual tag key:value dictionaries
     def set_lambda_resources_tags(self, resources_to_tag, chosen_tags, **session_credentials):
+        my_status = execution_status()
         resources_updated_tags = dict()
         tag_dict = dict()
 
-        self.session_credentials = {}
+        self.session_credentials = dict()
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
@@ -384,10 +384,21 @@ class lambda_resources_tags:
                         Resource=resource_arn,
                         Tags=tag_dict
                     )
+                    my_status.success(message='Tags updated successfully!')
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
                     resources_updated_tags["No Resources Found"] = "No Tags Applied"
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                        status_message = error.response['Error']['Code'] + ' - You are not authorized to change tags'
+                        my_status.error(message=status_message)
+                    else:
+                        my_status.error(message=error.response['Error']['Message'])
             except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
                     resources_updated_tags["No Resources Found"] = "No Tags Applied"
-        return resources_updated_tags
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                        status_message = error.response['Error']['Code'] + ' - You are not authorized to change tags'
+                        my_status.error(message=status_message)
+                    else:
+                        my_status.error(message=error.response['Error']['Message'])
+        return my_status.get_status()
