@@ -20,6 +20,18 @@ SPDX-License-Identifier: MIT-0 -->
     />
   </head>
   <body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        <span>{{ message }}</span>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
     <table style="width: 800px" class="table table-bordered table-striped">
       {% for instance, tags in inventory.items() %}
       <tr>

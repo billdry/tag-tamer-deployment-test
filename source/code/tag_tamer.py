@@ -173,8 +173,12 @@ def found_tags():
     log.debug('The received cookies are: %s', request.cookies.items())
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     inventory = resources_tags(resource_type, unit, region)
-    sorted_tagged_inventory = inventory.get_resources_tags(**session_credentials)
-    return render_template('found-tags.html', inventory=sorted_tagged_inventory)
+    sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
+    flash(execution_status['status_message'], execution_status['alert_level'])
+    if execution_status.get('alert_level') == 'success':
+        return render_template('found-tags.html', inventory=sorted_tagged_inventory)
+    else:
+        return render_template('blank.html')
 
 # Delivers HTML UI to select AWS resource types to manage Tag Groups for
 @app.route('/type-to-tag-group', methods=['GET'])
