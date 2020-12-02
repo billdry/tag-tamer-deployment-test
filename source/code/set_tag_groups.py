@@ -37,10 +37,9 @@ class set_tag_group:
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources.'
-                self.my_status.error(message=status_message)
+                    self.my_status.error(message='You are not authorized to access these resources')
             else:
-                self.my_status.error(message=error.response['Error']['Message'])
+                self.my_status.error()
     
     #Setter to instantiate a new Tag Group adding its tag key & range of tag values
     def create_tag_group(self, tag_group_name, tag_group_key_name, tag_group_value_options):

@@ -38,10 +38,9 @@ class get_tag_groups:
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources.'
-                self.my_status.error(message=status_message)
+                self.my_status.error(message='You are not authorized to view these resources')
             else:
-                self.my_status.error(message=error.response['Error']['Message'])
+                self.my_status.error()
 
     #Returns a dictionary of actual_tag_group_name:actual_tag_group_key key:value pairs
     def get_tag_group_names(self):
@@ -60,10 +59,9 @@ class get_tag_groups:
             log.error("Boto3 API returned error: {}".format(error))
             tag_group_names["No Tag Groups Found"] = "No Tag Groups Found"
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources.'
-                self.my_status.error(message=status_message)
+                self.my_status.error(message='You are not authorized to view these resources')
             else:
-                self.my_status.error(message=error.response['Error']['Message'])
+                self.my_status.error()
         
         sorted_tag_group_names = collections.OrderedDict(sorted(tag_group_names.items()))
         
@@ -87,10 +85,9 @@ class get_tag_groups:
             tag_group_key_values['tag_group_key'] = "No Tag Group Key Found"
             tag_group_key_values['tag_group_values'] = "No Tag Group Values Found" 
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources.'
-                self.my_status.error(message=status_message)
+                self.my_status.error(message='You are not authorized to view these resources')
             else:
-                self.my_status.error(message=error.response['Error']['Message'])
+                self.my_status.error()
         
         return tag_group_key_values, self.my_status.get_status()
 

@@ -34,13 +34,12 @@ class config:
 
     #Get REQUIRED_TAGS Config Rule name & input parameters
     def get_config_rule(self, config_rule_id):
-        response = dict()
-        all_config_rules = dict()
+        my_status = execution_status()
+        required_tags_config_rules = dict()
         try:
             response = self.config_client.describe_config_rules()
+            all_config_rules = dict()
             all_config_rules = response['ConfigRules']
-
-            required_tags_config_rules = dict()
             input_parameters_dict = dict()
             for rule in all_config_rules:
                 if rule['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
@@ -50,12 +49,16 @@ class config:
                     for key, value in input_parameters_dict.items():
                         required_tags_config_rules[key] = value
                     input_parameters_dict.clear()
-            
-            return required_tags_config_rules
-
+            my_status.success(message='\"required-tags\" Config rules found!')
         except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"
                 log.error(errorString.format(error))
+                if error.response['Error']['Code'] == 'AccessDeniedException' or \
+                    error.response['Error']['Code'] == 'UnauthorizedOperation':
+                    my_status.error(message='You are not authorized to view these resources')
+                else:
+                    my_status.error()
+        return required_tags_config_rules, my_status.get_status()
 
     #Get REQUIRED_TAGS Config Rule names & ID's
     def get_config_rules_ids_names(self):
@@ -69,29 +72,29 @@ class config:
             for configRule in all_config_rules:
                 if configRule['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
                     config_rules_ids_names[configRule['ConfigRuleId']] = configRule['ConfigRuleName']
-            my_status.success(message='Resources Found!')    
+            my_status.success(message='\"required-tags\" Config rules found!')    
 
         except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"
                 log.error(errorString.format(error))
-                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources'
-                    my_status.error(message=status_message)
+                if error.response['Error']['Code'] == 'AccessDeniedException' or \
+                    error.response['Error']['Code'] == 'UnauthorizedOperation':
+                    my_status.error(message='You are not authorized to view these resources')
                 else:
-                    my_status.error(message=error.response['Error']['Message'])
+                    my_status.error()
                 config_rules_ids_names['No Config rules found'] = 'No Config rules found'
         
         return config_rules_ids_names, my_status.get_status()
 
     #Set REQUIRED_TAGS Config Rule
     def set_config_rules(self, tag_groups_keys_values, config_rule_id):
-        
-        if len(tag_groups_keys_values):
+        my_status = execution_status()
+        if len(tag_groups_keys_values) and config_rule_id:
             # convert selected Tag Groups into JSON for Boto3 input to
             # this Config Rule's underlying Lambda :
             input_parameters_json = json.dumps(tag_groups_keys_values)
             config_rule_current_parameters = dict()
-            config_rule_current_parameters = self.get_config_rule(config_rule_id)
+            config_rule_current_parameters, config_rule_current_parameters_execution_status = self.get_config_rule(config_rule_id)
             try:
                 self.config_client.put_config_rule(
                     ConfigRule={
@@ -106,10 +109,18 @@ class config:
                         }    
                     }
                 )
+                my_status.success(message='\"required-tags\" Config rules updated!') 
                 log.debug('REQUIRED_TAGS Config Rule \"%s\" updated with these parameters: \"%s\"', config_rule_id, input_parameters_json)
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"
                 log.error(errorString.format(error))
+                if error.response['Error']['Code'] == 'AccessDeniedException' or \
+                    error.response['Error']['Code'] == 'UnauthorizedOperation':
+                    my_status.error(message='You are not authorized to view these resources')
+                else:
+                    my_status.error()
 
         else:
-            return log.warning("Please select at least one Tag Group")
+            my_status.warning(message="Please select at least one Tag Group and Config rule.")
+        
+        return my_status.get_status()

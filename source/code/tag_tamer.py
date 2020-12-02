@@ -269,7 +269,7 @@ def add_update_tag_group():
         if execution_status.get('alert_level') == 'success':
             resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
             inventory = resources_tags(resource_type, unit, region)
-            sorted_tag_values_inventory = inventory.get_tag_values(**session_credentials)
+            sorted_tag_values_inventory, sorted_tag_values_execution_status = inventory.get_tag_values(**session_credentials)
             return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
         else:
             flash(execution_status['status_message'], execution_status['alert_level'])
@@ -277,6 +277,7 @@ def add_update_tag_group():
     else:
         flash(execution_status['status_message'], execution_status['alert_level'])
         return render_template('blank.html')
+
 # Delivers HTML UI to select AWS resource type to tag using Tag Groups
 @app.route('/select-resource-type', methods=['POST'])
 @aws_auth.authentication_required
@@ -312,7 +313,6 @@ def tag_based_search():
                     tag_values=selected_tag_values)
         else:
             flash(execution_status_tag_keys['status_message'], execution_status_tag_keys['alert_level'])
-            flash(execution_status_tag_values['status_message'], execution_status_tag_values['alert_level'])
             return render_template('blank.html')
     else:
         return render_template('select-resource-type.html', destination_route='tag_filter')
@@ -378,7 +378,7 @@ def apply_tags_to_resources():
         flash(execution_status['status_message'], execution_status['alert_level'])
         if execution_status.get('alert_level') == 'success':
             updated_sorted_tagged_inventory = dict()
-            all_sorted_tagged_inventory = chosen_resources_to_tag.get_resources_tags(**session_credentials)
+            all_sorted_tagged_inventory, all_sorted_tagged_inventory_execution_status = chosen_resources_to_tag.get_resources_tags(**session_credentials)
             for resource_id in resources_to_tag:
                 updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]   
             return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
@@ -395,16 +395,19 @@ def get_service_catalog():
     #Get the Tag Group names & associated tag keys
     tag_group_inventory = dict()
     tag_groups = get_tag_groups(region, **session_credentials)
-    tag_group_inventory = tag_groups.get_tag_group_names()
+    tag_group_inventory, tag_groups_execution_status = tag_groups.get_tag_group_names()
 
     #Get the Service Catalog product templates
     sc_product_ids_names = dict()
     #sc_product_names = list()
     sc_products = service_catalog(region, **session_credentials)
-    sc_product_ids_names = sc_products.get_sc_product_templates()
+    sc_product_ids_names, sc_product_ids_names_execution_status = sc_products.get_sc_product_templates()
     
-
-    return render_template('update-service-catalog.html', tag_group_inventory=tag_group_inventory, sc_product_ids_names=sc_product_ids_names)
+    if sc_product_ids_names_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
+        return render_template('update-service-catalog.html', tag_group_inventory=tag_group_inventory, sc_product_ids_names=sc_product_ids_names)
+    else:
+        flash('You are not authorized to modify these resources', 'danger')
+        return render_template('blank.html')
 
 # Updates AWS Service Catalog product templates with TagOptions using Tag Groups
 @app.route('/set-service-catalog', methods=['POST'])
@@ -420,7 +423,7 @@ def set_service_catalog():
         #Get the Service Catalog product templates
         sc_product_ids_names = dict()
         sc_products = service_catalog(region, **session_credentials)
-        sc_product_ids_names = sc_products.get_sc_product_templates()
+        sc_product_ids_names, sc_product_ids_names_execution_status = sc_products.get_sc_product_templates()
 
         #Assign every tag in selected Tag Groups to selected SC product templates
         updated_product_temp_tagoptions = defaultdict(list)
@@ -428,11 +431,16 @@ def set_service_catalog():
         for sc_prod_template_id in sc_product_templates:
             for tag_group_name in selected_tag_groups:
                 sc_response.clear()
-                sc_response = sc_products.assign_tg_sc_product_template(tag_group_name, sc_prod_template_id)
+                sc_response, sc_response_execution_status = sc_products.assign_tg_sc_product_template(tag_group_name, sc_prod_template_id)
                 updated_product_temp_tagoptions[sc_prod_template_id].append(sc_response)
 
-        return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
+        if sc_response_execution_status.get('alert_level') == 'success' and sc_product_ids_names_execution_status.get('alert_level') == 'success':
+            return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
+        # for the case of Boto3 errors & unauthorized users
+        else:
+            return render_template('blank.html')    
     else:
+        flash('Please select at least one Tag Group and Service Catalog product.', 'warning')
         return redirect(url_for('get_service_catalog'))
 
 # Retrieves AWS Config Rules & Tag Groups
@@ -475,7 +483,7 @@ def set_config_rules():
         for group in selected_tag_groups:
             # A Required_Tags Config Rule instance accepts up to 6 Tag Groups
             if tag_count < 7:
-                tag_group_key_values = tag_groups.get_tag_group_key_values(group)
+                tag_group_key_values, key_values_execution_status = tag_groups.get_tag_group_key_values(group)
                 key_name = "tag{}Key".format(tag_count)
                 value_name = "tag{}Value".format(tag_count)
                 tag_groups_keys_values[key_name] = tag_group_key_values['tag_group_key']
@@ -484,11 +492,18 @@ def set_config_rules():
                 tag_count+=1
 
         config_rules = config(region, **session_credentials)
-        config_rules.set_config_rules(tag_groups_keys_values, config_rule_id)
-        updated_config_rule = config_rules.get_config_rule(config_rule_id)
-
-        return render_template('updated-config-rules.html', updated_config_rule=updated_config_rule)
+        set_rules_execution_status = config_rules.set_config_rules(tag_groups_keys_values, config_rule_id)
+        updated_config_rule, get_rule_execution_status = config_rules.get_config_rule(config_rule_id)
+        flash(set_rules_execution_status['status_message'], set_rules_execution_status['alert_level'])
+        if set_rules_execution_status.get('alert_level') == 'success' and get_rule_execution_status.get('alert_level') == 'success':
+            return render_template('updated-config-rules.html', updated_config_rule=updated_config_rule)
+        elif set_rules_execution_status.get('alert_level') == 'warning':
+            return redirect(url_for('find_config_rules'))
+        # for the case of Boto3 errors & unauthorized users
+        else:
+            return render_template('blank.html')
     else:
+        flash('Please select at least one Tag Group and Config rule.', 'warning')
         return redirect(url_for('find_config_rules'))
 
 # Retrieves AWS IAM Roles & Tag Groups
@@ -497,14 +512,20 @@ def set_config_rules():
 def select_roles_tags():
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     tag_group_inventory = get_tag_groups(region, **session_credentials)
-    tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
+    tag_groups_all_info, tag_groups_all_execution_status = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
 
     iam_roles = roles(region, **session_credentials)
-    #Initially get AWS SSO Roles
+    # In initial Tag Tamer release get AWS SSO Roles
     path_prefix = "/aws-reserved/sso.amazonaws.com/"
-    roles_inventory = iam_roles.get_roles(path_prefix)
+    roles_inventory, roles_execution_status = iam_roles.get_roles(path_prefix)
 
-    return render_template('tag-roles.html', roles_inventory=roles_inventory, tag_groups_all_info=tag_groups_all_info)
+    # User notifications based on her/his permission to access IAM Roles
+    flash(roles_execution_status['status_message'], roles_execution_status['alert_level'])
+    if roles_execution_status.get('alert_level') == 'success' and tag_groups_all_execution_status.get('alert_level') == 'success':
+        return render_template('tag-roles.html', roles_inventory=roles_inventory, tag_groups_all_info=tag_groups_all_info)
+    # for the case of Boto3 errors & unauthorized users
+    else:
+        return render_template('blank.html')
 
 # Assigns selected tags to roles for tagging newly created AWS resources
 @app.route('/set-roles-tags', methods=['POST'])
@@ -525,10 +546,16 @@ def set_roles_tags():
                 chosen_tags.append(tag_kv)
 
         role_to_tag = roles(region, **session_credentials)
-        role_to_tag.set_role_tags(role_name, chosen_tags)
-
-        return render_template('actions.html')
+        execution_status = role_to_tag.set_role_tags(role_name, chosen_tags)
+        flash(execution_status['status_message'], execution_status['alert_level'])
+        if execution_status.get('alert_level') == 'success':
+            #return render_template('actions.html')
+            return redirect(url_for('select_roles_tags'))
+        # for the case of Boto3 errors & unauthorized users
+        else:
+            return render_template('blank.html')
     else:
+        flash('Please select at least one Tag Group and IAM SSO Role.', 'warning')
         return redirect(url_for('select_roles_tags'))
 
 @app.route('/logout', methods=['GET'])

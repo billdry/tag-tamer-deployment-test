@@ -39,7 +39,7 @@ class execution_status:
             if kwargs.get('message'):
                 self.status['status_message'] = kwargs['message']
             else:
-                self.status['status_message'] = 'An error occurred.  Please check Tag Tamer log for error details.'
+                self.status['status_message'] = 'An error occurred.  Please contact your Tag Tamer administrator for assistance.'
             self.status['alert_level'] = 'danger'
         
         def get_status(self):

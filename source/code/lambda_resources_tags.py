@@ -132,10 +132,10 @@ class lambda_resources_tags:
                     except botocore.exceptions.ClientError as error:
                         log.error("Boto3 API returned error: {}".format(error))
                         if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                            status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
-                            my_status.error(message=status_message)
+                            
+                            my_status.error(message='You are not authorized to view these resources')
                         else:
-                            my_status.error(message=error.response['Error']['Message'])
+                            my_status.error()
                     intersection_combos[(tag_key1_state,
                         tag_value1_state,
                         tag_key2_state,
@@ -144,10 +144,10 @@ class lambda_resources_tags:
             except botocore.exceptions.ClientError as error:
                 log.error("Boto3 API returned error: {}".format(error))
                 if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
-                    my_status.error(message=status_message)
+                    
+                    my_status.error(message='You are not authorized to view these resources')
                 else:
-                    my_status.error(message=error.response['Error']['Message'])
+                    my_status.error()
             
 
         if self.filter_tags.get('conjunction') == 'OR':
@@ -231,18 +231,18 @@ class lambda_resources_tags:
                     except botocore.exceptions.ClientError as error:
                         log.error("Boto3 API returned error: {}".format(error))
                         if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                            status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
-                            my_status.error(message=status_message)
+                            
+                            my_status.error(message='You are not authorized to view these resources')
                         else:
-                            my_status.error(message=error.response['Error']['Message'])
+                            my_status.error()
                 my_status.success(message='Resources and tags found!')
             except botocore.exceptions.ClientError as error:
                 log.error("Boto3 API returned error: {}".format(error))
                 if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
-                    my_status.error(message=status_message)
+                    
+                    my_status.error(message='You are not authorized to view these resources')
                 else:
-                    my_status.error(message=error.response['Error']['Message'])
+                    my_status.error()
 
         # Sort the resources based on the resource's name
         ordered_inventory = OrderedDict()
@@ -288,10 +288,10 @@ class lambda_resources_tags:
                     log.error("Boto3 API returned error: {}".format(error))
                     resource_tags["No Tags Found"] = "No Tags Found"
                     if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                        status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
-                        my_status.error(message=status_message)
+                        
+                        my_status.error(message='You are not authorized to view these resources')
                     else:
-                        my_status.error(message=error.response['Error']['Message'])
+                        my_status.error()
                 sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
                 tagged_resource_inventory[item['FunctionArn']] = sorted_resource_tags
                 my_status.success(message='Resources and tags found!')
@@ -299,10 +299,10 @@ class lambda_resources_tags:
             log.error("Boto3 API returned error: {}".format(error))
             tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
-                my_status.error(message=status_message)
+                
+                my_status.error(message='You are not authorized to view these resources')
             else:
-                my_status.error(message=error.response['Error']['Message'])
+                my_status.error()
         return tagged_resource_inventory, my_status.get_status()
 
     # method - get_lambda_tag_keys
@@ -343,22 +343,18 @@ class lambda_resources_tags:
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
                     tag_keys_inventory.append("No tag keys found")
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                        status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag keys.'
-                        my_status.error(message=status_message)
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        my_status.error(message='You are not authorized to view these resources')
                     else:
-                        my_status.error(message=error.response['Error']['Message'])
+                        my_status.error()
 
             my_status.success(message='Resources and tags found!')
 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tag_keys_inventory.append("No tag keys found")
-            if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag keys.'
-                my_status.error(message=status_message)
+            if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                my_status.error(message='You are not authorized to view these resources')
             else:
-                my_status.error(message=error.response['Error']['Message'])
+                my_status.error()
         
         #Remove duplicate tags & sort
         tag_keys_inventory = list(set(tag_keys_inventory))
@@ -406,22 +402,18 @@ class lambda_resources_tags:
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
                     tag_values_inventory.append("No tag values found")
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                        status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag values.'
-                        my_status.error(message=status_message)
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        my_status.error(message='You are not authorized to view these resources')
                     else:
-                        my_status.error(message=error.response['Error']['Message'])
+                        my_status.error()
             
             my_status.success(message='Resources and tags found!')
                 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tag_values_inventory.append("No tag values found")
-            if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag values.'
-                    my_status.error(message=status_message)
+            if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                    my_status.error(message='You are not authorized to view these resources')
             else:
-                my_status.error(message=error.response['Error']['Message'])
+                my_status.error()
         
         #Remove duplicate tags & sort
         tag_values_inventory = list(set(tag_values_inventory))
@@ -462,17 +454,13 @@ class lambda_resources_tags:
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
                     resources_updated_tags["No Resources Found"] = "No Tags Applied"
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                        status_message = error.response['Error']['Code'] + ' - You are not authorized to change tags'
-                        my_status.error(message=status_message)
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        my_status.error(message='You are not authorized to view these resources')
                     else:
-                        my_status.error(message=error.response['Error']['Message'])
+                        my_status.error()
             except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
                     resources_updated_tags["No Resources Found"] = "No Tags Applied"
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                        status_message = error.response['Error']['Code'] + ' - You are not authorized to change tags'
-                        my_status.error(message=status_message)
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        my_status.error(message='You are not authorized to view these resources')
                     else:
-                        my_status.error(message=error.response['Error']['Message'])
+                        my_status.error()
         return my_status.get_status()
