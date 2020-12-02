@@ -35,7 +35,7 @@ class resources_tags:
 
     #Returns a sorted list of all resources for the resource type specified  
     def get_resources(self, filter_tags, **session_credentials):
-        
+        my_status = execution_status()
         self.filter_tags = dict()
         self.filter_tags = filter_tags
         log.debug("The received filter tags are: {}".format(self.filter_tags))
@@ -61,12 +61,18 @@ class resources_tags:
                     filtered_resources = getattr(client, client_command)(
                         Filters=filters_list
                     )
+                    my_status.success(message='Resources Found!')
                     log.debug("The filtered resources are: {}".format(filtered_resources))
                     return filtered_resources
                     
                 except botocore.exceptions.ClientError as error:
                     errorString = "Boto3 API returned error: {}"
                     log.error(errorString.format(error))
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                        status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
+                        my_status.error(message=status_message)
+                    else:
+                        my_status.error(message=error.response['Error']['Message'])
                     filtered_resources = dict()
                     return filtered_resources
             
@@ -160,12 +166,18 @@ class resources_tags:
                         }
                     ]
                 )
+                my_status.success(message='Resources Found!')
                 log.debug("The named resources are: {}".format(named_resources))
                 return named_resources
 
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"
                 log.error(errorString.format(error))
+                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
+                    my_status.error(message=status_message)
+                else:
+                    my_status.error(message=error.response['Error']['Message'])
                 named_resources = dict()
                 return named_resources
 
@@ -195,9 +207,14 @@ class resources_tags:
                             for tag in resource['Tags']:
                                 if(tag['Key'].lower() == 'name'):
                                     named_resource_inventory[resource['InstanceId']] = tag['Value']
-                    
+                    my_status.success(message='Resources Found!')
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                        status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
+                        my_status.error(message=status_message)
+                    else:
+                        my_status.error(message=error.response['Error']['Message'])
 
         elif self.unit == 'volumes':
             if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2'):
@@ -222,10 +239,16 @@ class resources_tags:
                             for tag in item['Tags']:
                                 if(tag['Key'].lower() == 'name'):
                                     named_resource_inventory[item['VolumeId']] = tag['Value']
-                    
+                    my_status.success(message='Resources Found!')
                 except botocore.exceptions.ClientError as error:
                     errorString = "Boto3 API returned error: {}"
                     log.error(errorString.format(error))
+                    named_resource_inventory["No Resource Found"] = "No Resource Found"
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                        status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
+                        my_status.error(message=status_message)
+                    else:
+                        my_status.error(message=error.response['Error']['Message'])
 
         elif self.unit == 'buckets':
             if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2'):
@@ -235,9 +258,15 @@ class resources_tags:
                         response = client.get_bucket_tagging(
                             Bucket=resource.name
                         )
+                        my_status.success(message='Resources Found!')
                     except botocore.exceptions.ClientError as error:
                         errorString = "Boto3 API returned error: {} {}"
                         log.error(errorString.format(resource.name, error))
+                        if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                            status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
+                            my_status.error(message=status_message)
+                        else:
+                            my_status.error(message=error.response['Error']['Message'])
                         response = dict()
                     if 'TagSet' in response:
                         for tag in response['TagSet']:
@@ -257,18 +286,30 @@ class resources_tags:
                                         named_resource_inventory[resource.name] = resource.name
             else:
                 selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
-                for resource in selected_resource_type.buckets.all():   
-                    named_resource_inventory[resource.name] = resource.name
-                log.debug("The buckets list is: {}".format(named_resource_inventory)) 
+                try:
+                    for resource in selected_resource_type.buckets.all():   
+                        named_resource_inventory[resource.name] = resource.name
+                    my_status.success(message='Resources Found!')
+                    log.debug("The buckets list is: {}".format(named_resource_inventory))
+                except botocore.exceptions.ClientError as error:
+                    errorString = "Boto3 API returned error: {} {}"
+                    log.error(errorString.format(self.unit, error))
+                    named_resource_inventory["No Resource Found"] = "No Resource Found"
+                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                        status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
+                        my_status.error(message=status_message)
+                    else:
+                        my_status.error(message=error.response['Error']['Message'])
 
         elif self.unit == "functions":
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            named_resource_inventory = functions_inventory.get_lambda_names_ids(self.filter_tags, **self.session_credentials)
-        
+            named_resource_inventory, lambda_resources_status = functions_inventory.get_lambda_names_ids(self.filter_tags, **self.session_credentials)
+            return named_resource_inventory, lambda_resources_status
+
         # Sort the resources based on the resource's name
         ordered_inventory = OrderedDict()
         ordered_inventory = sorted(named_resource_inventory.items(), key=lambda item: item[1])
-        return ordered_inventory
+        return ordered_inventory, my_status.get_status()
             
     # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
     # No input arguments
@@ -307,7 +348,7 @@ class resources_tags:
                 my_status.success(message='Resources and tags found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {} {}"
-                log.error(errorString.format(resource_id, error))
+                log.error(errorString.format(self.unit, error))
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
                 if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
                     status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
@@ -374,7 +415,7 @@ class resources_tags:
     # Getter method retrieves every tag:key for object's resource type
     # No input arguments
     def get_tag_keys(self, **session_credentials):
-
+        my_status = execution_status()
         sorted_tag_keys_inventory = list()
 
         self.session_credentials = {}
@@ -396,10 +437,16 @@ class resources_tags:
                                 sorted_tag_keys_inventory.append(tag["Key"])
                     except:
                         sorted_tag_keys_inventory.append("No tag keys found")
+                my_status.success(message='Resources and tags found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {} {}"
                 log.error(errorString.format(self.unit, error))
                 sorted_tag_keys_inventory.append("No tag keys found")
+                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag keys.'
+                    my_status.error(message=status_message)
+                else:
+                    my_status.error(message=error.response['Error']['Message'])
         elif self.unit == 'volumes':
             try:
                 selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
@@ -410,10 +457,16 @@ class resources_tags:
                                 sorted_tag_keys_inventory.append(tag["Key"])
                     except:
                         sorted_tag_keys_inventory.append("No Tags Found")
+                my_status.success(message='Resources and tags found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {} {}"
                 log.error(errorString.format(self.unit, error))
                 sorted_tag_keys_inventory.append("No Tags Found")
+                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag keys.'
+                    my_status.error(message=status_message)
+                else:
+                    my_status.error(message=error.response['Error']['Message'])
         elif self.unit == 'buckets':
             try:
                 selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
@@ -424,19 +477,26 @@ class resources_tags:
                                 sorted_tag_keys_inventory.append(tag["Key"])
                     except:
                         sorted_tag_keys_inventory.append("No Tags Found")
+                my_status.success(message='Resources and tags found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {} {}"
                 log.error(errorString.format(self.unit, error))
                 sorted_tag_keys_inventory.append("No Tags Found")
+                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag keys.'
+                    my_status.error(message=status_message)
+                else:
+                    my_status.error(message=error.response['Error']['Message'])
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            sorted_tag_keys_inventory = functions_inventory.get_lambda_tag_keys(**self.session_credentials)
+            sorted_tag_keys_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_keys(**self.session_credentials)
+            return sorted_tag_keys_inventory, lambda_resources_status
 
         #Remove duplicate tags & sort
         sorted_tag_keys_inventory = list(set(sorted_tag_keys_inventory))
         sorted_tag_keys_inventory.sort(key=str.lower)
 
-        return sorted_tag_keys_inventory
+        return sorted_tag_keys_inventory, my_status.get_status()
 
     # Getter method retrieves every tag:value for object's resource type
     # No input arguments
@@ -459,7 +519,7 @@ class resources_tags:
                 for item in selected_resource_type.instances.all():
                     try:
                         for tag in item.tags:
-                            if not re.search("^aws:", tag["Key"]):
+                            if not re.search("^aws:", tag["Key"]) and tag["Value"]:
                                 sorted_tag_values_inventory.append(tag["Value"])
                     except:
                         sorted_tag_values_inventory.append("No Tags Found")
@@ -469,7 +529,7 @@ class resources_tags:
                 log.error(errorString.format(self.unit, error))
                 sorted_tag_values_inventory.append("No Tags Found")
                 if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag values.'
                     my_status.error(message=status_message)
                 else:
                     my_status.error(message=error.response['Error']['Message'])
@@ -479,7 +539,7 @@ class resources_tags:
                 for item in selected_resource_type.volumes.all():
                     try:
                         for tag in item.tags:
-                            if not re.search("^aws:", tag["Key"]):
+                            if not re.search("^aws:", tag["Key"])  and tag["Value"]:
                                 sorted_tag_values_inventory.append(tag["Value"])
                     except:
                         sorted_tag_values_inventory.append("No Tags Found")
@@ -489,7 +549,7 @@ class resources_tags:
                 log.error(errorString.format(self.unit, error))
                 sorted_tag_values_inventory.append("No Tags Found")
                 if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag values.'
                     my_status.error(message=status_message)
                 else:
                     my_status.error(message=error.response['Error']['Message'])
@@ -499,7 +559,7 @@ class resources_tags:
                 for item in selected_resource_type.buckets.all():
                     try:
                         for tag in selected_resource_type.BucketTagging(item.name).tag_set:
-                            if not re.search("^aws:", tag["Key"]):
+                            if not re.search("^aws:", tag["Key"])  and tag["Value"]:
                                 sorted_tag_values_inventory.append(tag["Value"])
                     except:
                         sorted_tag_values_inventory.append("No Tags Found")
@@ -509,7 +569,7 @@ class resources_tags:
                 log.error(errorString.format(self.unit, error))
                 sorted_tag_values_inventory.append("No Tags Found")
                 if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tags.'
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources and tag values.'
                     my_status.error(message=status_message)
                 else:
                     my_status.error(message=error.response['Error']['Message'])

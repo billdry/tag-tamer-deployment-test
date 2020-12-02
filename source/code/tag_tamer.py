@@ -192,11 +192,14 @@ def type_to_tag_group():
 def get_tag_group_names():
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     all_tag_groups = get_tag_groups(region, **session_credentials)
-    tag_group_names = all_tag_groups.get_tag_group_names()
-    
-    resource_type, _ = get_resource_type_unit(request.form.get('resource_type'))
-
-    return render_template('display-tag-groups.html', inventory=tag_group_names, resource_type=resource_type)
+    tag_group_names, execution_status = all_tag_groups.get_tag_group_names()
+    flash(execution_status['status_message'], execution_status['alert_level'])
+    if execution_status.get('alert_level') == 'success':
+        resource_type, _ = get_resource_type_unit(request.form.get('resource_type'))
+        return render_template('display-tag-groups.html',
+            inventory=tag_group_names, resource_type=resource_type)
+    else:
+        return render_template('blank.html')
 
 # Post method to display edit UI for chosen tag group
 @app.route('/edit-tag-group', methods=['POST'])
@@ -205,21 +208,28 @@ def edit_tag_group():
     resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     inventory = resources_tags(resource_type, unit, region)
-    sorted_tag_values_inventory = inventory.get_tag_values(**session_credentials)
-
-    # If user does not select an existing Tag Group or enter 
-    # a new Tag Group name reload this route until valid user input given
-    if request.form.get('tag_group_name'):    
-        selected_tag_group_name = request.form.get('tag_group_name')
-        tag_group = get_tag_groups(region, **session_credentials)
-        tag_group_key_values = tag_group.get_tag_group_key_values(selected_tag_group_name)
-        return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
-    elif request.form.get('new_tag_group_name'):
-        selected_tag_group_name = request.form.get('new_tag_group_name')
-        tag_group_key_values = {}
-        return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+    sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
+    if execution_status.get('alert_level') == 'success':
+        # If user does not select an existing Tag Group or enter 
+        # a new Tag Group name reload this route until valid user input given
+        if request.form.get('tag_group_name'):    
+            selected_tag_group_name = request.form.get('tag_group_name')
+            tag_group = get_tag_groups(region, **session_credentials)
+            tag_group_key_values, execution_status = tag_group.get_tag_group_key_values(selected_tag_group_name)
+            if execution_status.get('alert_level') == 'success':
+                return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+            else:
+                flash(execution_status['status_message'], execution_status['alert_level'])
+                return render_template('blank.html')
+        elif request.form.get('new_tag_group_name'):
+            selected_tag_group_name = request.form.get('new_tag_group_name')
+            tag_group_key_values = {}
+            return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+        else:
+            return render_template('type-to-tag-group.html')
     else:
-        return render_template('type-to-tag-group.html')
+        flash(execution_status['status_message'], execution_status['alert_level'])
+        return render_template('blank.html')
 
 # Post method to add or update a tag group
 @app.route('/add-update-tag-group', methods=['POST'])
@@ -250,19 +260,23 @@ def add_update_tag_group():
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     tag_group = set_tag_group(region, **session_credentials)
     if tag_group_action == "create":
-        new_tag_group = tag_group.create_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
+        execution_status = tag_group.create_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
     else:
-        updated_tag_group = tag_group.update_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
-
-    tag_groups = get_tag_groups(region, **session_credentials)
-    tag_group_key_values = tag_groups.get_tag_group_key_values(tag_group_name)
-
-    resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-    inventory = resources_tags(resource_type, unit, region)
-    sorted_tag_values_inventory = inventory.get_tag_values(**session_credentials)
-
-    return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
-
+        execution_status = tag_group.update_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
+    if execution_status.get('alert_level') == 'success':
+        tag_groups = get_tag_groups(region, **session_credentials)
+        tag_group_key_values, execution_status = tag_groups.get_tag_group_key_values(tag_group_name)
+        if execution_status.get('alert_level') == 'success':
+            resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+            inventory = resources_tags(resource_type, unit, region)
+            sorted_tag_values_inventory = inventory.get_tag_values(**session_credentials)
+            return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+        else:
+            flash(execution_status['status_message'], execution_status['alert_level'])
+            return render_template('blank.html')
+    else:
+        flash(execution_status['status_message'], execution_status['alert_level'])
+        return render_template('blank.html')
 # Delivers HTML UI to select AWS resource type to tag using Tag Groups
 @app.route('/select-resource-type', methods=['POST'])
 @aws_auth.authentication_required
@@ -289,13 +303,17 @@ def tag_based_search():
         resource_type, unit = get_resource_type_unit(request.args.get('resource_type'))
         session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
         inventory = resources_tags(resource_type, unit, region)
-        selected_tag_keys = inventory.get_tag_keys(**session_credentials)
-        selected_tag_values = inventory.get_tag_values(**session_credentials)
-
-        return render_template('tag-search.html', 
-                resource_type=request.args.get('resource_type'),
-                tag_keys=selected_tag_keys, 
-                tag_values=selected_tag_values)
+        selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
+        selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
+        if execution_status_tag_keys.get('alert_level') == 'success' and execution_status_tag_values.get('alert_level') == 'success':
+            return render_template('tag-search.html', 
+                    resource_type=request.args.get('resource_type'),
+                    tag_keys=selected_tag_keys, 
+                    tag_values=selected_tag_values)
+        else:
+            flash(execution_status_tag_keys['status_message'], execution_status_tag_keys['alert_level'])
+            flash(execution_status_tag_values['status_message'], execution_status_tag_values['alert_level'])
+            return render_template('blank.html')
     else:
         return render_template('select-resource-type.html', destination_route='tag_filter')
 
@@ -321,10 +339,15 @@ def tag_resources():
         session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
         chosen_resource_inventory = resources_tags(resource_type, unit, region)
         chosen_resources = OrderedDict()
-        chosen_resources = chosen_resource_inventory.get_resources(filter_elements, **session_credentials)
+        chosen_resources, resources_execution_status = chosen_resource_inventory.get_resources(filter_elements, **session_credentials)
+        
         tag_group_inventory = get_tag_groups(region, **session_credentials)
-        tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
-        return render_template('tag-resources.html', resource_type=resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
+        tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
+        if resources_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
+            return render_template('tag-resources.html', resource_type=resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
+        else:
+            flash('You are not authorized to modify these resources', 'danger')
+            return render_template('blank.html')
     else:
         return render_template('blank.html')
 
@@ -420,14 +443,18 @@ def find_config_rules():
     #Get the Tag Group names & associated tag keys
     tag_group_inventory = dict()
     tag_groups = get_tag_groups(region, **session_credentials)
-    tag_group_inventory = tag_groups.get_tag_group_names()
+    tag_group_inventory, tag_groups_execution_status = tag_groups.get_tag_group_names()
 
     #Get the AWS Config Rules
     config_rules_ids_names = dict()
     config_rules = config(region, **session_credentials)
-    config_rules_ids_names = config_rules.get_config_rules_ids_names()
+    config_rules_ids_names, config_rules_execution_status = config_rules.get_config_rules_ids_names()
     
-    return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
+    if config_rules_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
+        return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
+    else:
+        flash('You are not authorized to modify these resources', 'danger')
+        return render_template('blank.html')
 
 # Updates AWS Config's required-tags rule using Tag Groups
 @app.route('/update-config-rules', methods=['POST'])

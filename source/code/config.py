@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: MIT-0
 # Getter & setter for AWS Config Rules
 
+# Import administrative functions
+from admin import execution_status
 # Import AWS module for python
 import botocore
 import boto3
@@ -57,22 +59,29 @@ class config:
 
     #Get REQUIRED_TAGS Config Rule names & ID's
     def get_config_rules_ids_names(self):
+        my_status = execution_status()
         response = dict()
         all_config_rules = dict()
+        config_rules_ids_names = dict()
         try:
             response = self.config_client.describe_config_rules()
             all_config_rules = response['ConfigRules']
-
-            config_rules_ids_names = dict()
             for configRule in all_config_rules:
                 if configRule['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
                     config_rules_ids_names[configRule['ConfigRuleId']] = configRule['ConfigRuleName']
-                
-            return config_rules_ids_names
+            my_status.success(message='Resources Found!')    
 
         except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"
                 log.error(errorString.format(error))
+                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                    status_message = error.response['Error']['Code'] + ' - You are not authorized to view these resources'
+                    my_status.error(message=status_message)
+                else:
+                    my_status.error(message=error.response['Error']['Message'])
+                config_rules_ids_names['No Config rules found'] = 'No Config rules found'
+        
+        return config_rules_ids_names, my_status.get_status()
 
     #Set REQUIRED_TAGS Config Rule
     def set_config_rules(self, tag_groups_keys_values, config_rule_id):
