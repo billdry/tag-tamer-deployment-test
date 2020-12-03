@@ -24,7 +24,7 @@ def get_user_group_arns(user_name, user_pool_id, region):
             UserPoolId=user_pool_id
         )
         # initially support one Cognito user pool group per user
-        group_role_arn = cognito_idp_groups['Groups'][0]['RoleArn']
+        group_role_arn = cognito_idp_groups['Groups'][0]['RoleArn'] if cognito_idp_groups.get('Groups') else False
     except botocore.exceptions.ClientError as error:
         log.error("Boto3 API returned error: {}".format(error))
         group_role_arn = False
