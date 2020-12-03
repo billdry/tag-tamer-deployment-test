@@ -431,13 +431,15 @@ def set_service_catalog():
         for sc_prod_template_id in sc_product_templates:
             for tag_group_name in selected_tag_groups:
                 sc_response.clear()
-                sc_response, sc_response_execution_status = sc_products.assign_tg_sc_product_template(tag_group_name, sc_prod_template_id)
+                sc_response, sc_response_execution_status = sc_products.assign_tg_sc_product_template(tag_group_name, sc_prod_template_id, **session_credentials)
                 updated_product_temp_tagoptions[sc_prod_template_id].append(sc_response)
 
         if sc_response_execution_status.get('alert_level') == 'success' and sc_product_ids_names_execution_status.get('alert_level') == 'success':
+            flash('TagOptions update succeeded!', 'success')
             return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
         # for the case of Boto3 errors & unauthorized users
         else:
+            flash('You are not authorized to modify these resources', 'danger')
             return render_template('blank.html')    
     else:
         flash('Please select at least one Tag Group and Service Catalog product.', 'warning')
