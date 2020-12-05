@@ -28,7 +28,7 @@ SPDX-License-Identifier: MIT-0 -->
                         </table>
 
                         <form method="post" action="{{ url_for('apply_tags_to_resources') }}">  
-                            <input type="hidden" name="" value=""/>          
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>          
                                     <div class="form-group">
                                         <select multiple class="custom-select" id="FormControlSelect1" name="resources_to_tag" size="10">
                                         {% for id_name in resource_inventory %}

@@ -72,7 +72,10 @@ class config:
             for configRule in all_config_rules:
                 if configRule['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
                     config_rules_ids_names[configRule['ConfigRuleId']] = configRule['ConfigRuleName']
-            my_status.success(message='\"required-tags\" Config rules found!')    
+            if len(config_rules_ids_names):
+                my_status.success(message='\"required-tags\" Config rules found!')
+            else:
+                my_status.warning(message='No \"required-tags\" Config rules found!')
 
         except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"

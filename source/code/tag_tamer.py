@@ -43,6 +43,7 @@ from flask import Flask, flash, jsonify, make_response, redirect, render_templat
 # Use only flask_awscognito version 1.2.6 or higher from Tag Tamer
 from flask_awscognito import AWSCognitoAuthentication
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
+from flask_wtf.csrf import CSRFProtect
 # Import JSON parser
 import json
 # Import logging module
@@ -98,9 +99,12 @@ app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['jwt-token-location']
 app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['jwt-access-cookie-name']
 app.config['JWT_COOKIE_SECURE'] = ssm_parameters['jwt-cookie-secure']
 app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['jwt-cookie-csrf-protect']
+csrf = CSRFProtect(app)
+csrf.init_app(app)
 
 aws_auth = AWSCognitoAuthentication(app)
 jwt = JWTManager(app)
+
 
 # Get the user's session credentials based on username passed in JWT
 def get_user_session_credentials(cognito_id_token):
@@ -221,7 +225,7 @@ def edit_tag_group():
             else:
                 flash(execution_status['status_message'], execution_status['alert_level'])
                 return render_template('blank.html')
-        elif request.form.get('new_tag_group_name'):
+        elif request.form.get('new_tag_group_name') and re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')):
             selected_tag_group_name = request.form.get('new_tag_group_name')
             tag_group_key_values = {}
             return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
@@ -235,12 +239,17 @@ def edit_tag_group():
 @app.route('/add-update-tag-group', methods=['POST'])
 @aws_auth.authentication_required
 def add_update_tag_group():
-    #new_tag_group_name = request.form.get('new_tag_group_name')
-    if request.form.get('new_tag_group_name') and request.form.get('new_tag_group_key_name'):
+    if request.form.get('new_tag_group_name') and \
+        re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')) and \
+        request.form.get('new_tag_group_key_name') and \
+        re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_key_name')):
         tag_group_name = request.form.get('new_tag_group_name')
         tag_group_key_name = request.form.get('new_tag_group_key_name')
         tag_group_action = "create"
-    elif request.form.get('selected_tag_group_name') and request.form.get('selected_tag_group_key_name'):
+    elif request.form.get('selected_tag_group_name') and \
+        re.search("^\w[\w\- ]{0,125}\w$", request.form.get('selected_tag_group_name')) and \
+        request.form.get('selected_tag_group_key_name') and \
+        re.search("^\w[\w\- ]{0,125}\w$", request.form.get('selected_tag_group_key_name')):
         tag_group_name = request.form.get('selected_tag_group_name')
         tag_group_key_name = request.form.get('selected_tag_group_key_name')
         tag_group_action = "update"
@@ -250,12 +259,16 @@ def add_update_tag_group():
     tag_group_value_options = []
     form_contents = request.form.to_dict()
     for key, value in form_contents.items():
-        if value == "checked":
+        if value == "checked" and re.search("^\w[\w\- ]{0,223}\w$", key):
             tag_group_value_options.append(key)
     if request.form.get("new_tag_group_values"):
+        approved_new_tag_group_values = list()
         new_tag_group_values = request.form.get("new_tag_group_values").split(",")
-        new_tag_group_values = [value.strip(" ") for value in new_tag_group_values]
-        tag_group_value_options.extend(new_tag_group_values)
+        for value in new_tag_group_values:
+            core_value = value.strip(" ")
+            if re.search("^\w[\w\- ]{0,223}\w$", core_value):
+                approved_new_tag_group_values.append(core_value)
+        tag_group_value_options.extend(approved_new_tag_group_values)
 
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     tag_group = set_tag_group(region, **session_credentials)
@@ -461,6 +474,9 @@ def find_config_rules():
     config_rules_ids_names, config_rules_execution_status = config_rules.get_config_rules_ids_names()
     
     if config_rules_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
+        return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
+    elif config_rules_execution_status.get('alert_level') == 'warning' and tag_groups_execution_status.get('alert_level') == 'success':
+        flash(config_rules_execution_status['status_message'], config_rules_execution_status['alert_level'])
         return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
     else:
         flash('You are not authorized to modify these resources', 'danger')

@@ -41,7 +41,7 @@ SPDX-License-Identifier: MIT-0 -->
                     </table>
 
         <form method="post" action="{{ url_for('set_service_catalog') }}">  
-            <input type="hidden" name="" value=""/>          
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>          
                     <div class="form-group">
                         <select multiple class="custom-select" id="FormControlSelect1" name="tag_groups_to_assign" size="10">
                         {% for tag_group_name, tag_group_key in tag_group_inventory.items() %}

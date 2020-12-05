@@ -38,6 +38,7 @@ SPDX-License-Identifier: MIT-0 -->
     <br />
     <div class="container">
       <form method="post" action="{{ url_for('select_resource_type') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="next_route" value="tag_filter" />
         <button type="submit" class="btn btn-primary btn-lg">
           Tag your existing AWS resources using your Tag Groups

@@ -20,6 +20,8 @@
             "jwt-cookie-secure",
             "jwt-token-location"
         ],
+        "tag_key_regex": "^\\w[\\w\\- ]{0,125}\\w$",
+        "tag_value_regex": "^\\w[\\w\\- ]{0,223}\\w$",
         "tagging_statistics": "YES"
     }
 }
