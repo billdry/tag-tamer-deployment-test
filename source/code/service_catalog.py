@@ -135,31 +135,33 @@ class service_catalog:
                     self.my_status.error()
         return sc_prod_templates_ids_names, self.my_status.get_status()
     
-    #Method to assign a Tag Group (TG) to an SC product_template 
+    # Method to assign a Tag Group (TG) to an SC product_template 
     def assign_tg_sc_product_template(self, tag_group_name, sc_product_template_id, **session_credentials):
         self.my_status = execution_status()
         all_sc_tag_options = dict()
         tag_group_contents = dict()
         this_sc_tag_option_values_ids = dict()
 
-        #Instantiate a service catalog class instance
+        # Instantiate a service catalog class instance
         sc_instance = service_catalog(self.region, **session_credentials)
 
-        #Get the key & values list for the requested Tag Group
+        # Get the key & values list for the requested Tag Group
         tag_group = get_tag_groups(self.region, **session_credentials)
         tag_group_contents, tag_group_execution_status = tag_group.get_tag_group_key_values(tag_group_name)
         
-        #Get the dictionary of current SC TagOptions
+        # Get the dictionary of current SC TagOptions
         all_sc_tag_options, sc_tag_execution_status = sc_instance.get_sc_tag_options(key=tag_group_contents['tag_group_key'])
         
-        #Get the TagOption ID's of all SC TagOptions that have the same key as the Tag Group parameter
-        #If there's a key match, remember the corresponding value to determine if any Tag Group values are missing from SC
+        # Get the TagOption ID's of all SC TagOptions that have the same key as the Tag Group parameter
+        # If there's a key match, remember the corresponding value to determine if any Tag Group values are missing from SC
         for sc_tag_option in all_sc_tag_options['TagOptionDetails']:
             if sc_tag_option['Key'] == tag_group_contents['tag_group_key']:
                 this_sc_tag_option_values_ids[sc_tag_option['Value']] = sc_tag_option['Id']
 
+        # Delete Service Catalog TagOptions values that are not included in selected Tag Group
         if this_sc_tag_option_values_ids:
-            for value, option_id in this_sc_tag_option_values_ids.items():
+            temp_tag_option_values_ids = this_sc_tag_option_values_ids.copy()
+            for value, option_id in temp_tag_option_values_ids.items():
                 if value not in tag_group_contents['tag_group_values']:
                     try:
                         response = self.service_catalog_client.disassociate_tag_option_from_resource(
@@ -169,6 +171,7 @@ class service_catalog:
                         response = self.service_catalog_client.delete_tag_option(
                             Id=option_id
                         )
+                        this_sc_tag_option_values_ids.pop(value)
                         self.my_status.success(message='Service Catalog TagOption deleted!')
                     except botocore.exceptions.ClientError as error:
                         log.error('Boto3 API returned error: \"%s\"', error)
@@ -181,12 +184,13 @@ class service_catalog:
                 else:
                     self.my_status.success()
         
-        # Create SC TagOptions for the selected Tag Group's values if value is not already a TagOption
+        # Create SC TagOptions for the selected Tag Group's values if value is not already an SC TagOption
         for value in tag_group_contents['tag_group_values']:
             if value not in this_sc_tag_option_values_ids:
                 tag_option_id, tag_option_id_execution_status = sc_instance.create_sc_tag_option(tag_group_contents['tag_group_key'], value)
-                    
-        #Assign Tag value in the Tag Group to the specified SC product template if not already assigned 
+                this_sc_tag_option_values_ids[value] = tag_option_id
+
+        
         product_template_details = dict()
         try:
             product_template_details = self.service_catalog_client.describe_product_as_admin(
@@ -210,7 +214,8 @@ class service_catalog:
         for tag_option in existing_prod_template_tag_options:
             existing_product_template_tag_option_ids.append(tag_option.get('Id'))
 
-        for to_id in this_sc_tag_option_values_ids.values():
+        # Assign Tag value in the Tag Group to the specified SC product template if not already assigned 
+        for value, to_id in this_sc_tag_option_values_ids.items():
             if to_id not in existing_product_template_tag_option_ids:
                 try:
                     sc_response = self.service_catalog_client.associate_tag_option_with_resource(
