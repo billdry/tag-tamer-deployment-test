@@ -446,9 +446,13 @@ def set_service_catalog():
                 sc_response.clear()
                 sc_response, sc_response_execution_status = sc_products.assign_tg_sc_product_template(tag_group_name, sc_prod_template_id, **session_credentials)
                 updated_product_temp_tagoptions[sc_prod_template_id].append(sc_response)
-
+        print(sc_response_execution_status.get('alert_level'))
+        print(sc_product_ids_names_execution_status.get('alert_level'))
         if sc_response_execution_status.get('alert_level') == 'success' and sc_product_ids_names_execution_status.get('alert_level') == 'success':
             flash('TagOptions update succeeded!', 'success')
+            return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
+        elif sc_response_execution_status.get('alert_level') == 'warning' and sc_product_ids_names_execution_status.get('alert_level') == 'success':
+            flash(sc_response_execution_status['status_message'], sc_response_execution_status['alert_level'])
             return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
         # for the case of Boto3 errors & unauthorized users
         else:

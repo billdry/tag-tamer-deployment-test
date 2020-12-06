@@ -51,6 +51,7 @@ class service_catalog:
 
     #Method to create an SC TagOption & return the TagOption ID
     def create_sc_tag_option(self, tag_key, tag_value):
+        self.my_status = execution_status()
         tag_option_id = ""
         try:
             sc_response = self.service_catalog_client.create_tag_option(
@@ -70,6 +71,7 @@ class service_catalog:
 
     #Method to update an SC TagOption & return the TagOption ID
     def update_sc_tag_option(self, tag_key, tag_value):
+        self.my_status = execution_status()
         tag_option_id = ""
         try:
             sc_response = self.service_catalog_client.update_tag_option(
@@ -87,10 +89,18 @@ class service_catalog:
         return tag_option_id, self.my_status.get_status()
 
     #Method to get all existing TagOptions from SC
-    def get_sc_tag_options(self):
+    def get_sc_tag_options(self, **kwargs):
+        self.my_status = execution_status()
         sc_response = dict()
         try:
-            sc_response = self.service_catalog_client.list_tag_options()
+            if kwargs.get('key'):
+                sc_response = self.service_catalog_client.list_tag_options(
+                    Filters={
+                        'Key': kwargs.get('key')
+                    }
+                )
+            else:
+                sc_response = self.service_catalog_client.list_tag_options()
             self.my_status.success(message='Service Catalog Tag options found!')
         except botocore.exceptions.ClientError as error:
                 log.error('Boto3 API returned error: \"%s\"', error)
@@ -103,6 +113,7 @@ class service_catalog:
 
     #Method to get all existing SC product template ID's & names
     def get_sc_product_templates(self):
+        self.my_status = execution_status()
         sc_prod_templates_ids_names = dict()
         try:
             sc_response = self.service_catalog_client.search_products_as_admin(
@@ -126,11 +137,10 @@ class service_catalog:
     
     #Method to assign a Tag Group (TG) to an SC product_template 
     def assign_tg_sc_product_template(self, tag_group_name, sc_product_template_id, **session_credentials):
-        current_sc_tag_options = dict()
-        #sc_response = dict()
+        self.my_status = execution_status()
+        all_sc_tag_options = dict()
         tag_group_contents = dict()
-        sc_tag_option_ids = list()
-        sc_tag_option_values = list()
+        this_sc_tag_option_values_ids = dict()
 
         #Instantiate a service catalog class instance
         sc_instance = service_catalog(self.region, **session_credentials)
@@ -140,55 +150,76 @@ class service_catalog:
         tag_group_contents, tag_group_execution_status = tag_group.get_tag_group_key_values(tag_group_name)
         
         #Get the dictionary of current SC TagOptions
-        current_sc_tag_options, sc_tag_execution_status = sc_instance.get_sc_tag_options()
-
+        all_sc_tag_options, sc_tag_execution_status = sc_instance.get_sc_tag_options(key=tag_group_contents['tag_group_key'])
+        
         #Get the TagOption ID's of all SC TagOptions that have the same key as the Tag Group parameter
-        #If there's a key match, remember the corresponding value to see any Tag Group values are missing from SC
-        for sc_tag_option in current_sc_tag_options['TagOptionDetails']:
+        #If there's a key match, remember the corresponding value to determine if any Tag Group values are missing from SC
+        for sc_tag_option in all_sc_tag_options['TagOptionDetails']:
             if sc_tag_option['Key'] == tag_group_contents['tag_group_key']:
-                sc_tag_option_ids.append(sc_tag_option['Id'])
-                sc_tag_option_values.append(sc_tag_option['Value'])
+                this_sc_tag_option_values_ids[sc_tag_option['Value']] = sc_tag_option['Id']
 
-        #Create SC TagOptions for any Tag Group values not in SC for the specified Tag Group 
-        if sc_tag_option_values:
-            for value in sc_tag_option_values:
+        if this_sc_tag_option_values_ids:
+            for value, option_id in this_sc_tag_option_values_ids.items():
                 if value not in tag_group_contents['tag_group_values']:
-                    tag_option_id, tag_option_id_execution_status = sc_instance.create_sc_tag_option(tag_group_contents['tag_group_key'], value)
-                    sc_tag_option_ids.append(tag_option_id)
-        else:
-            for tag_group_value in tag_group_contents['tag_group_values']:
-                tag_option_id, tag_option_id_execution_status = sc_instance.create_sc_tag_option(tag_group_contents['tag_group_key'], tag_group_value)
-                sc_tag_option_ids.append(tag_option_id)
-
-        #Assign TagOption in the Tag Group to the specified SC product template if not already assigned 
+                    try:
+                        response = self.service_catalog_client.disassociate_tag_option_from_resource(
+                            ResourceId=sc_product_template_id,
+                            TagOptionId=option_id
+                        )
+                        response = self.service_catalog_client.delete_tag_option(
+                            Id=option_id
+                        )
+                        self.my_status.success(message='Service Catalog TagOption deleted!')
+                    except botocore.exceptions.ClientError as error:
+                        log.error('Boto3 API returned error: \"%s\"', error)
+                        if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
+                            self.my_status.error(message='You are not authorized to update these resources')
+                        elif error.response['Error']['Code'] == 'ResourceInUseException':
+                            self.my_status.warning(message='The TagOption Key: \"' + tag_group_contents['tag_group_key'] + '\" and Value: \"' + value + '\" is in use on another Product Template.')
+                        else:
+                            self.my_status.error()
+                else:
+                    self.my_status.success()
+        
+        # Create SC TagOptions for the selected Tag Group's values if value is not already a TagOption
+        for value in tag_group_contents['tag_group_values']:
+            if value not in this_sc_tag_option_values_ids:
+                tag_option_id, tag_option_id_execution_status = sc_instance.create_sc_tag_option(tag_group_contents['tag_group_key'], value)
+                    
+        #Assign Tag value in the Tag Group to the specified SC product template if not already assigned 
         product_template_details = dict()
         try:
             product_template_details = self.service_catalog_client.describe_product_as_admin(
-            Id=sc_product_template_id
+                Id=sc_product_template_id
             )
-            self.my_status.success(message='Service Catalog product template found!')
+            current_status = self.my_status.get_status()
+            if current_status['alert_level'] == 'success':
+                self.my_status.success(message='Service Catalog product template found!')
         except botocore.exceptions.ClientError as error:
             log.error('Boto3 API returned error: \"%s\"', error)
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
                 self.my_status.error(message='You are not authorized to view these resources')
             else:
                 self.my_status.error()
+  
+        existing_prod_template_tag_options = list()
+        existing_prod_template_tag_options = product_template_details.get('TagOptions')
            
-        existing_tag_options = list()
-        existing_tag_options = product_template_details.get('TagOptions')
-           
-        existing_tag_option_ids = list()
-        for tag_option in existing_tag_options:
-            existing_tag_option_ids.append(tag_option['Id'])
-       
-        for to_id in sc_tag_option_ids:
-            if to_id not in existing_tag_option_ids:
+        existing_product_template_tag_option_ids = list()
+        
+        for tag_option in existing_prod_template_tag_options:
+            existing_product_template_tag_option_ids.append(tag_option.get('Id'))
+
+        for to_id in this_sc_tag_option_values_ids.values():
+            if to_id not in existing_product_template_tag_option_ids:
                 try:
                     sc_response = self.service_catalog_client.associate_tag_option_with_resource(
                         ResourceId=sc_product_template_id,
                         TagOptionId=to_id
                     )
-                    self.my_status.success(message='New Tag Option associated with Service Catalog product!')
+                    current_status = self.my_status.get_status()
+                    if current_status['alert_level'] == 'success':
+                        self.my_status.success(message='New Tag Option associated with Service Catalog product!')
                 except botocore.exceptions.ClientError as error:
                     log.error('Boto3 API returned error: \"%s\"', error)
                     if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
@@ -200,24 +231,23 @@ class service_catalog:
         product_template_details.clear()
         try:
             product_template_details = self.service_catalog_client.describe_product_as_admin(
-            Id=sc_product_template_id
+                Id=sc_product_template_id
             )
-            self.my_status.success(message='Service Catalog product template found!')
+            current_status = self.my_status.get_status()
+            if current_status['alert_level'] == 'success':
+                self.my_status.success(message='Service Catalog product template found!')
         except botocore.exceptions.ClientError as error:
             log.error('Boto3 API returned error: \"%s\"', error)
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
                 self.my_status.error(message='You are not authorized to view these resources')
             else:
                 self.my_status.error()
-        #product_template_details = self.service_catalog_client.describe_product_as_admin(
-        #  Id=sc_product_template_id
-        #)
            
-        existing_tag_options.clear()
-        existing_tag_options = product_template_details['TagOptions']
+        existing_prod_template_tag_options.clear()
+        existing_prod_template_tag_options = product_template_details['TagOptions']
            
-        existing_tag_option_key_values = defaultdict(list)
-        for tag_option in existing_tag_options:
-            existing_tag_option_key_values[tag_option['Key']].append(tag_option['Value'])
-        
-        return existing_tag_option_key_values, self.my_status.get_status()
+        existing_tag_option_keys_values = defaultdict(list)
+        for tag_option in existing_prod_template_tag_options:
+            existing_tag_option_keys_values[tag_option['Key']].append(tag_option['Value'])
+
+        return existing_tag_option_keys_values, self.my_status.get_status()
