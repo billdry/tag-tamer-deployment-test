@@ -69,6 +69,8 @@ logging.basicConfig(filename=tag_tamer_parameters['parameters']['log_file_locati
 # Set the base/root logging level for tag_tamer.py & all imported modules
 logging.getLogger().setLevel(logLevel)
 log = logging.getLogger('tag_tamer_main')
+# Raise logging level for flask_wtf.csrf
+logging.getLogger('flask_wtf.csrf').setLevel('WARNING')
 # Raise logging level for WSGI tool kit "werkzeug" that's German for "tool"
 logging.getLogger('werkzeug').setLevel('ERROR')
 
@@ -379,6 +381,7 @@ def apply_tags_to_resources():
         session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
         chosen_resources_to_tag = resources_tags(resource_type, unit, region) 
         form_contents.pop("resource_type")
+        form_contents.pop("csrf_token")
 
         chosen_tags = list()
         for key, value in form_contents.items():
@@ -412,7 +415,6 @@ def get_service_catalog():
 
     #Get the Service Catalog product templates
     sc_product_ids_names = dict()
-    #sc_product_names = list()
     sc_products = service_catalog(region, **session_credentials)
     sc_product_ids_names, sc_product_ids_names_execution_status = sc_products.get_sc_product_templates()
     
@@ -570,7 +572,6 @@ def set_roles_tags():
         execution_status = role_to_tag.set_role_tags(role_name, chosen_tags)
         flash(execution_status['status_message'], execution_status['alert_level'])
         if execution_status.get('alert_level') == 'success':
-            #return render_template('actions.html')
             return redirect(url_for('select_roles_tags'))
         # for the case of Boto3 errors & unauthorized users
         else:
