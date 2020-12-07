@@ -42,7 +42,7 @@ import flask, flask_wtf
 from flask import Flask, flash, jsonify, make_response, redirect, render_template, request, url_for
 # Use only flask_awscognito version 1.2.6 or higher from Tag Tamer
 from flask_awscognito import AWSCognitoAuthentication
-from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
+#from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
 from flask_wtf.csrf import CSRFProtect
 # Import JSON parser
 import json
@@ -101,11 +101,12 @@ app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['jwt-token-location']
 app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['jwt-access-cookie-name']
 app.config['JWT_COOKIE_SECURE'] = ssm_parameters['jwt-cookie-secure']
 app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['jwt-cookie-csrf-protect']
+
 csrf = CSRFProtect(app)
 csrf.init_app(app)
 
 aws_auth = AWSCognitoAuthentication(app)
-jwt = JWTManager(app)
+#jwt = JWTManager(app)
 
 
 # Get the user's session credentials based on username passed in JWT
@@ -131,8 +132,8 @@ def aws_cognito_redirect():
     access_token, id_token = aws_auth.get_tokens(request.args)
     if access_token and id_token:    
         response = make_response(render_template('redirect.html'))
-        response.set_cookie('access_token', value=access_token)
-        response.set_cookie('id_token', value=id_token)
+        response.set_cookie('access_token', value=access_token, secure=True, httponly=True)
+        response.set_cookie('id_token', value=id_token, secure=True, httponly=True)
         return response, 200
     else:
         return redirect(url_for('sign_in'))
@@ -559,6 +560,7 @@ def set_roles_tags():
         role_name = request.form.get('roles_to_tag')
         form_contents = request.form.to_dict()
         form_contents.pop('roles_to_tag')
+        form_contents.pop("csrf_token")
 
         chosen_tags = list()
         for key, value in form_contents.items():
@@ -586,5 +588,7 @@ def logout():
     claims = aws_auth.claims
     log.info("User \"{}\" signed out on {}".format(claims.get('username'), date_time_now()))
     response = make_response(render_template('logout.html'))
-    unset_jwt_cookies(response)
+    response.delete_cookie('access_token')
+    response.delete_cookie('id_token')
+    response.delete_cookie('session')
     return response, 200       
