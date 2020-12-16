@@ -253,8 +253,14 @@ class resources_tags:
         elif self.unit == "functions":
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             named_resource_inventory = functions_inventory.get_lambda_names_ids(self.filter_tags)
-        
+        elif self.unit == "clusters":
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            named_resource_inventory = clusters_inventory.get_eks_clusters_ids(self.filter_tags) 
+        #elif self.unit == "nodegroups":
+        #    nodegroups_inventory = eks_nodegroups_tags(self.resource_type, self.region)
+        #   named_resource_inventory = nodegroups_inventory.get_eks_nodegroup_ids(self.filter_tags) 
         # Sort the resources based on the resource's name
+
         ordered_inventory = OrderedDict()
         ordered_inventory = sorted(named_resource_inventory.items(), key=lambda item: item[1])
         return ordered_inventory
@@ -320,6 +326,12 @@ class resources_tags:
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             tagged_resource_inventory = functions_inventory.get_lambda_resources_tags()
+        elif self.unit == 'clusters':
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            tagged_resource_inventory = clusters_inventory.get_eks_clusters_tags() 
+        #elif self.unit == 'nodegroups':               
+        #    nodegroups_inventory = eks_nodegroups_tags(self.resource_type, self.region)
+        #    tagged_resource_inventory = nodegroups_inventory.get_eks_nodegroups_tags()
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
 
@@ -376,6 +388,12 @@ class resources_tags:
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             sorted_tag_keys_inventory = functions_inventory.get_lambda_tag_keys()
+        elif self.unit == 'clusters':
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            tagged_resource_inventory = clusters_inventory.get_eks_clusters_keys() 
+        #elif self.unit == 'nodegroups':               
+        #    nodegroups_inventory = eks_nodegroups_tags(self.resource_type, self.region)
+        #    tagged_resource_inventory = nodegroups_inventory.get_eks_nodegroups_keys()            
 
         #Remove duplicate tags & sort
         sorted_tag_keys_inventory = list(set(sorted_tag_keys_inventory))
@@ -434,6 +452,12 @@ class resources_tags:
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             sorted_tag_values_inventory = functions_inventory.get_lambda_tag_values()
+        elif self.unit == 'clusters':
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            tagged_resource_inventory = clusters_inventory.get_eks_clusters_values() 
+        #elif self.unit == 'nodegroups':               
+        #    nodegroups_inventory = eks_nodegroups_tags(self.resource_type, self.region)
+        #    tagged_resource_inventory = nodegroups_inventory.get_eks_nodegroups_values()            
 
         #Remove duplicate tags & sort
         sorted_tag_values_inventory = list(set(sorted_tag_values_inventory))
@@ -507,5 +531,11 @@ class resources_tags:
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             resources_updated_tags = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags)
+        elif self.unit == 'clusters':
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            tagged_resource_inventory = clusters_inventory.set_eks_clusters_tags(resources_to_tag, chosen_tags) 
+        #elif self.unit == 'nodegroups':               
+        #    nodegroups_inventory = eks_nodegroups_tags(self.resource_type, self.region)
+        #    tagged_resource_inventory = nodegroups_inventory.get_eks_nodegroups_tags(resources_to_tag, chosen_tags)
         
         return resources_updated_tags             
