@@ -111,24 +111,26 @@ class eks_nodegroups_tags:
             try:
                 client = boto3.client(self.resource_type, region_name=self.region)
                 # Get all the EKS nodegroups in the region
-                my_nodegroups = client.list_nodegroups()
-                for item in my_nodegroups['nodegroups']:
-                    eks_nodegroup_arn= client.describe_nodegroup(
-                        name=item
-                    )['nodegroup']['arn']
-                    try:
-                        # Get all the tags for a given EKS nodegroup
-                        response = client.list_tags_for_resource(
-                            resourceArn= eks_nodegroup_arn
-                        )
-                    except botocore.exceptions.ClientError as error:
-                            log.error("Boto3 API returned error: {}".format(error))
-                    intersection_combos[(tag_key1_state,
-                        tag_value1_state,
-                        tag_key2_state,
-                        tag_value2_state)](response.get('Tags'), item, eks_nodegroup_arn )
-            except botocore.exceptions.ClientError as error:
-                log.error("Boto3 API returned error: {}".format(error))
+                my_clusters = client.list_clusters()
+                for cluster in my_clusters['clusters']:
+                    my_nodegroups = client.list_nodegroups(clusterName=cluster)
+                    for item in my_nodegroups['nodegroups']:
+                        eks_nodegroup_arn= client.describe_nodegroup(
+                            name=item
+                        )['nodegroup']['arn']
+                        try:
+                            # Get all the tags for a given EKS nodegroup
+                            response = client.list_tags_for_resource(
+                                resourceArn= eks_nodegroup_arn
+                            )
+                        except botocore.exceptions.ClientError as error:
+                                log.error("Boto3 API returned error: {}".format(error))
+                        intersection_combos[(tag_key1_state,
+                            tag_value1_state,
+                            tag_key2_state,
+                            tag_value2_state)](response.get('Tags'), item, eks_nodegroup_arn )
+                except botocore.exceptions.ClientError as error:
+                    log.error("Boto3 API returned error: {}".format(error))
             
 
         if self.filter_tags.get('conjunction') == 'OR':
@@ -196,26 +198,28 @@ class eks_nodegroups_tags:
                 
             try:
                 client = boto3.client(self.resource_type, region_name=self.region)
+                my_clusters = client.list_clusters()
                 # Get all the EKS nodegroups in the region
-                my_nodegroups = client.list_nodegroups()
-                for item in my_nodegroups['nodegroups']:
-                    eks_nodegroup_arn= client.describe_nodegroup(
-                        name=item
-                        )['nodegroup']['arn']
-                    try:
-                        # Get all the tags for a given EKS nodegroup
-                        response = client.list_tags_for_resource(
-                            resourceArn=eks_nodegroup_arn
-                        )
-                        or_combos[(tag_key1_state,
-                            tag_value1_state,
-                            tag_key2_state,
-                            tag_value2_state)](response.get('Tags'), item, eks_nodegroup_arn)
-                    
-                    except botocore.exceptions.ClientError as error:
-                            log.error("Boto3 API returned error: {}".format(error))
-            except botocore.exceptions.ClientError as error:
-                            log.error("Boto3 API returned error: {}".format(error))
+                for cluster in my_clusters['clusters']:
+                    my_nodegroups = client.list_nodegroups(clusterName=cluster)                
+                    for item in my_nodegroups['nodegroups']:
+                        eks_nodegroup_arn= client.describe_nodegroup(
+                            name=item
+                            )['nodegroup']['arn']
+                        try:
+                            # Get all the tags for a given EKS nodegroup
+                            response = client.list_tags_for_resource(
+                                resourceArn=eks_nodegroup_arn
+                            )
+                            or_combos[(tag_key1_state,
+                                tag_value1_state,
+                                tag_key2_state,
+                                tag_value2_state)](response.get('Tags'), item, eks_nodegroup_arn)
+                        
+                        except botocore.exceptions.ClientError as error:
+                                log.error("Boto3 API returned error: {}".format(error))
+                except botocore.exceptions.ClientError as error:
+                                log.error("Boto3 API returned error: {}".format(error))
             
         return resource_inventory            
 
@@ -228,31 +232,33 @@ class eks_nodegroups_tags:
         tagged_resource_inventory = dict()
         try:
             client = boto3.client(self.resource_type, region_name=self.region)
+            my_clusters = client.list_clusters()
             # Get all the EKS nodegroups in the region
-            my_nodegroups = client.list_nodegroups()
-            if len(my_nodegroups['nodegroups']) == 0:
-                tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
-            else:
-                for item in my_nodegroups['nodegroups']:
-                    resource_tags = {}
-                    eks_nodegroup_arn= client.describe_nodegroup(
-                        name=item 
-                        )['nodegroup']['arn']
-                    try: 
-                        response = client.list_tags_for_resource(
-                            resourceArn= eks_nodegroup_arn
-                            )
-                        try:
-                            for tag_key, tag_value in response['tags'].items():
-                                if not re.search("^aws:", tag_key):
-                                    resource_tags[tag_key]= tag_value
-                        except:
-                            resource_tags[tag_key] = "No tag values found"
-                    except botocore.exceptions.ClientError as error:
-                        log.error("Boto3 API returned error: {}".format(error))
-                        resource_tags["No Tags Found"] = "No Tags Found"
-                    sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
-                    tagged_resource_inventory[nodegroup_arn] = sorted_resource_tags
+            for cluster in my_clusters['clusters']:
+                my_nodegroups = client.list_nodegroups(clusterName=cluster)
+                if len(my_nodegroups['nodegroups']) == 0:
+                    tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
+                else:
+                    for item in my_nodegroups['nodegroups']:
+                        resource_tags = {}
+                        eks_nodegroup_arn= client.describe_nodegroup(
+                            name=item 
+                            )['nodegroup']['arn']
+                        try: 
+                            response = client.list_tags_for_resource(
+                                resourceArn= eks_nodegroup_arn
+                                )
+                            try:
+                                for tag_key, tag_value in response['tags'].items():
+                                    if not re.search("^aws:", tag_key):
+                                        resource_tags[tag_key]= tag_value
+                            except:
+                                resource_tags[tag_key] = "No tag values found"
+                        except botocore.exceptions.ClientError as error:
+                            log.error("Boto3 API returned error: {}".format(error))
+                            resource_tags["No Tags Found"] = "No Tags Found"
+                        sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
+                        tagged_resource_inventory[nodegroup_arn] = sorted_resource_tags
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
@@ -265,31 +271,33 @@ class eks_nodegroups_tags:
         tag_keys_inventory = list()
         try:
             client = boto3.client(self.resource_type, region_name=self.region)
-            # Get all the EKS nodegroups in the region
-            my_nodegroups = client.list_nodegroups()
-            if len(my_nodegroups['nodegroups']) == 0:
-                tag_keys_inventory.append("No tag keys found") 
-            else:    
-                for item in my_nodegroups['nodegroups']:
-                    nodegroup_arn = client.describe_nodegroup(
-                        name=item
-                    )['nodegroup']['arn']
-                    try:
-                        # Get all the tags for a given EKS nodegroup
-                        response = client.list_tags_for_resource(
-                            resourceArn=nodegroup_arn
-                        )
+            my_clusters = client.list_clusters()
+                # Get all the EKS nodegroups in the region
+            for cluster in my_clusters['clusters']:    
+                my_nodegroups = client.list_nodegroups(clusterName=cluster)
+                if len(my_nodegroups['nodegroups']) == 0:
+                    tag_keys_inventory.append("No tag keys found") 
+                else:    
+                    for item in my_nodegroups['nodegroups']:
+                        nodegroup_arn = client.describe_nodegroup(
+                            name=item
+                        )['nodegroup']['arn']
                         try:
-                            # Add all tag keys to the list
-                            for tag_key, _ in response['Tags'].items():       
-                                if not re.search("^aws:", tag_key):
-                                    tag_keys_inventory.append(tag_key)
-                        except:
-                            tag_keys_inventory.append("No tag keys found")
+                            # Get all the tags for a given EKS nodegroup
+                            response = client.list_tags_for_resource(
+                                resourceArn=nodegroup_arn
+                            )
+                            try:
+                                # Add all tag keys to the list
+                                for tag_key, _ in response['Tags'].items():       
+                                    if not re.search("^aws:", tag_key):
+                                        tag_keys_inventory.append(tag_key)
+                            except:
+                                tag_keys_inventory.append("No tag keys found")
 
-                    except botocore.exceptions.ClientError as error:
-                        log.error("Boto3 API returned error: {}".format(error))
-                        tag_keys_inventory.append("No tag keys found")
+                        except botocore.exceptions.ClientError as error:
+                            log.error("Boto3 API returned error: {}".format(error))
+                            tag_keys_inventory.append("No tag keys found")
                 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
@@ -304,32 +312,34 @@ class eks_nodegroups_tags:
         tag_values_inventory = list()
         try:
             client = boto3.client(self.resource_type, region_name=self.region)
-            # Get all the EKS nodegroups in the region
-            my_nodegroups = client.list_nodegroups()
-            if len(my_nodegroups['nodegroups']) == 0:
-                tag_values_inventory.append("No tag values found")
-            else:
-                for item in my_nodegroups['nodegroups']:
-                    nodegroup_arn = client.describe_nodegroup(
-                        name=item
-                    )['nodegroup']['arn']
-                    try:
-                        # Get all the tags for a given EKS nodegroup
-                        response = client.list_tags_for_resource(
-                            resourceArn=nodegroup_arn
-                        )
+            my_clusters = client.list_clusters()
+            for cluster in my_clusters['clusters']:
+                # Get all the EKS nodegroups in the region
+                my_nodegroups = client.list_nodegroups(clusterName=cluster)
+                if len(my_nodegroups['nodegroups']) == 0:
+                    tag_values_inventory.append("No tag values found")
+                else:
+                    for item in my_nodegroups['nodegroups']:
+                        nodegroup_arn = client.describe_nodegroup(
+                            name=item
+                        )['nodegroup']['arn']
                         try:
-                            # Add all tag keys to the list
-                            for tag_key, tag_value in response['Tags'].items():       
-                                # Exclude any AWS-applied tags which begin with "aws:"
-                                if not re.search("^aws:", tag_key):
-                                    tag_values_inventory.append(tag_value)
-                        except:
-                            tag_values_inventory.append("No tag values found")
+                            # Get all the tags for a given EKS nodegroup
+                            response = client.list_tags_for_resource(
+                                resourceArn=nodegroup_arn
+                            )
+                            try:
+                                # Add all tag keys to the list
+                                for tag_key, tag_value in response['Tags'].items():       
+                                    # Exclude any AWS-applied tags which begin with "aws:"
+                                    if not re.search("^aws:", tag_key):
+                                        tag_values_inventory.append(tag_value)
+                            except:
+                                tag_values_inventory.append("No tag values found")
 
-                    except botocore.exceptions.ClientError as error:
-                        log.error("Boto3 API returned error: {}".format(error))
-                        tag_values_inventory.append("No tag values found")
+                        except botocore.exceptions.ClientError as error:
+                            log.error("Boto3 API returned error: {}".format(error))
+                            tag_values_inventory.append("No tag values found")
                 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
@@ -352,7 +362,7 @@ class eks_nodegroups_tags:
                 try:
                     response = client.tag_resource(
                         resourceArn=resource_arn,
-                        tags={tag_dict}
+                        tags=tag_dict
                     )
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))

@@ -252,7 +252,7 @@ class eks_clusters_tags:
                         log.error("Boto3 API returned error: {}".format(error))
                         resource_tags["No Tags Found"] = "No Tags Found"
                     sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
-                    tagged_resource_inventory[cluster_arn] = sorted_resource_tags
+                    tagged_resource_inventory[eks_cluster_arn] = sorted_resource_tags
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
