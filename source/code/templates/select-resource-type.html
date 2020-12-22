@@ -60,11 +60,21 @@
             class="form-check-input"
             type="radio"
             id="eksClusterRadio"
-            value="eks"
+            value="eks_cluster"
             name="resource_type"
           />
-          <label class="form-check-label" for="ec2Radio">EKS Clusters</label>
-        </div>        
+          <label class="form-check-label" for="eksClusterRadio">EKS Clusters</label>
+        </div>       
+        <div class="form-check">
+          <input
+            class="form-check-input"
+            type="radio"
+            id="eksNodegroupRadio"
+            value="eks_nodegroup"
+            name="resource_type"
+          />
+          <label class="form-check-label" for="eksNodegroupRadio">EKS Nodegroups</label>
+        </div>          
         <div class="form-check">
           <input
             class="form-check-input"
