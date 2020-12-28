@@ -119,7 +119,7 @@ class eks_clusters_tags:
                     try:
                         # Get all the tags for a given EKS Cluster
                         response = client.list_tags_for_resource(
-                            resourceArn= eks_cluster_arn
+                            resourceArn= cluster_arn
                         )
                     except botocore.exceptions.ClientError as error:
                             log.error("Boto3 API returned error: {}".format(error))
@@ -230,6 +230,7 @@ class eks_clusters_tags:
             client = boto3.client(self.resource_type, region_name=self.region)
             # Get all the EKS Clusters in the region
             my_clusters = client.list_clusters()
+<<<<<<< HEAD
             if len(my_clusters['clusters']) == 0:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
             else:
@@ -253,6 +254,29 @@ class eks_clusters_tags:
                         resource_tags["No Tags Found"] = "No Tags Found"
                     sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
                     tagged_resource_inventory[eks_cluster_arn] = sorted_resource_tags
+=======
+    
+            for item in my_clusters['clusters']:
+                resource_tags = {}
+                cluster_arn= client.describe_cluster(
+                    name=item 
+                    )['cluster']['arn']
+                try: 
+                    response = client.list_tags_for_resource(
+                        resourceArn= cluster_arn
+                        )
+                    try:
+                        for tag_key, tag_value in response['tags'].items():
+                            if not re.search("^aws:", tag_key):
+                                resource_tags[tag_key]= tag_value
+                    except:
+                        resource_tags[tag_key] = "No tag values found"
+                except botocore.exceptions.ClientError as error:
+                    log.error("Boto3 API returned error: {}".format(error))
+                    resource_tags["No Tags Found"] = "No Tags Found"
+                sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
+                tagged_resource_inventory[cluster_arn] = sorted_resource_tags
+>>>>>>> parent of bdba61a... fix frontend and add eks nodegroups
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
@@ -267,29 +291,26 @@ class eks_clusters_tags:
             client = boto3.client(self.resource_type, region_name=self.region)
             # Get all the EKS clusters in the region
             my_clusters = client.list_clusters()
-            if len(my_clusters['clusters']) == 0:
-                tag_keys_inventory.append("No tag keys found") 
-            else:    
-                for item in my_clusters['clusters']:
-                    cluster_arn = client.describe_cluster(
-                        name=item
-                    )['cluster']['arn']
+            for item in my_clusters['clusters']:
+                cluster_arn = client.describe_cluster(
+                    name=item
+                )['cluster']['arn']
+                try:
+                    # Get all the tags for a given EKS Cluster
+                    response = client.list_tags_for_resource(
+                        resourceArn=cluster_arn
+                    )
                     try:
-                        # Get all the tags for a given EKS Cluster
-                        response = client.list_tags_for_resource(
-                            resourceArn=cluster_arn
-                        )
-                        try:
-                            # Add all tag keys to the list
-                            for tag_key, _ in response['Tags'].items():       
-                                if not re.search("^aws:", tag_key):
-                                    tag_keys_inventory.append(tag_key)
-                        except:
-                            tag_keys_inventory.append("No tag keys found")
-
-                    except botocore.exceptions.ClientError as error:
-                        log.error("Boto3 API returned error: {}".format(error))
+                        # Add all tag keys to the list
+                        for tag_key, _ in response['Tags'].items():       
+                            if not re.search("^aws:", tag_key):
+                                tag_keys_inventory.append(tag_key)
+                    except:
                         tag_keys_inventory.append("No tag keys found")
+
+                except botocore.exceptions.ClientError as error:
+                    log.error("Boto3 API returned error: {}".format(error))
+                    tag_keys_inventory.append("No tag keys found")
                 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
@@ -306,30 +327,27 @@ class eks_clusters_tags:
             client = boto3.client(self.resource_type, region_name=self.region)
             # Get all the EKS clusters in the region
             my_clusters = client.list_clusters()
-            if len(my_clusters['clusters']) == 0:
-                tag_values_inventory.append("No tag values found")
-            else:
-                for item in my_clusters['clusters']:
-                    cluster_arn = client.describe_cluster(
-                        name=item
-                    )['cluster']['arn']
+            for item in my_clusters['clusters']:
+                cluster_arn = client.describe_cluster(
+                    name=item
+                )['cluster']['arn']
+                try:
+                    # Get all the tags for a given EKS Cluster
+                    response = client.list_tags_for_resource(
+                        resourceArn=cluster_arn
+                    )
                     try:
-                        # Get all the tags for a given EKS Cluster
-                        response = client.list_tags_for_resource(
-                            resourceArn=cluster_arn
-                        )
-                        try:
-                            # Add all tag keys to the list
-                            for tag_key, tag_value in response['Tags'].items():       
-                                # Exclude any AWS-applied tags which begin with "aws:"
-                                if not re.search("^aws:", tag_key):
-                                    tag_values_inventory.append(tag_value)
-                        except:
-                            tag_values_inventory.append("No tag values found")
-
-                    except botocore.exceptions.ClientError as error:
-                        log.error("Boto3 API returned error: {}".format(error))
+                        # Add all tag keys to the list
+                        for tag_key, tag_value in response['Tags'].items():       
+                            # Exclude any AWS-applied tags which begin with "aws:"
+                            if not re.search("^aws:", tag_key):
+                                tag_values_inventory.append(tag_value)
+                    except:
                         tag_values_inventory.append("No tag values found")
+
+                except botocore.exceptions.ClientError as error:
+                    log.error("Boto3 API returned error: {}".format(error))
+                    tag_values_inventory.append("No tag values found")
                 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
@@ -351,8 +369,8 @@ class eks_clusters_tags:
                 client = boto3.client(self.resource_type, region_name=self.region)
                 try:
                     response = client.tag_resource(
-                        resourceArn=resource_arn,
-                        tags={tag_dict}
+                        Resource=resource_arn,
+                        Tags=tag_dict
                     )
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))

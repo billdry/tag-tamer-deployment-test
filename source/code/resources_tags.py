@@ -9,10 +9,6 @@ import boto3, botocore
 from collections import OrderedDict
 # Import AWS Lambda resources & tags getters & setters
 from lambda_resources_tags import * 
-# Import EKS Clusters tags
-from eks_clusters_tags import *
-# Import EKS Nodegroups Tags
-from eks_nodegroups_tags import *
 # Import logging module
 import logging
 # Import Python's regex module to filter Boto3's API responses 
@@ -333,9 +329,9 @@ class resources_tags:
         elif self.unit == 'clusters':
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
             tagged_resource_inventory = clusters_inventory.get_eks_clusters_tags() 
-        elif self.unit == 'nodegroups':               
-            nodegroups_inventory = eks_nodegroups_tags(self.resource_type, self.region)
-            tagged_resource_inventory = nodegroups_inventory.get_eks_nodegroups_tags()
+        #elif self.unit == 'nodegroups':               
+        #    nodegroups_inventory = eks_nodegroups_tags(self.resource_type, self.region)
+        #    tagged_resource_inventory = nodegroups_inventory.get_eks_nodegroups_tags()
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
 

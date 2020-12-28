@@ -18,12 +18,9 @@ def get_resource_type_unit(type):
         elif type == "s3":
             resource_type = 's3'
             unit = 'buckets'
-        elif type == 'eks_cluster':
+        elif type == 'eks':
             resource_type = 'eks'
             unit = 'clusters'
-        elif type == 'eks_nodegroup':
-            resource_type = 'eks'
-            unit = 'nodegroups'        
         else:
             resource_type = 'ec2'
             unit = 'instances'
