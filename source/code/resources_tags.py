@@ -9,6 +9,8 @@ import boto3, botocore
 from collections import OrderedDict
 # Import AWS Lambda resources & tags getters & setters
 from lambda_resources_tags import * 
+# Import AWS EKS resources & tags getters & setters
+from eks_clusters_tags import *
 # Import logging module
 import logging
 # Import Python's regex module to filter Boto3's API responses 
